@@ -151,6 +151,30 @@ void I2C2_ER_IRQHandler(void)
 }
 #endif
 
+void I2C_Send (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes, bool block)
+{
+	//wait for bus to be ready
+	while (HAL_I2C_GetState(&i2c_port) != HAL_I2C_STATE_READY);
+	//need to replace this Pico function call
+
+    HAL_I2C_Master_Transmit_DMA(&i2c_port,  i2cAddr, buf, bytes);
+
+    if (block)
+    	while (HAL_I2C_GetState(&i2c_port) != HAL_I2C_STATE_READY);
+}
+
+uint8_t *I2C_ReadRegister (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes, bool block)
+{
+
+	while (HAL_I2C_GetState(&i2c_port) != HAL_I2C_STATE_READY);
+    HAL_I2C_Mem_Read(&i2c_port, i2cAddr, buf[0], I2C_MEMADD_SIZE_8BIT, buf, 1, 100);
+
+    //if (block)
+    //	while (HAL_I2C_GetState(&i2c_port) != HAL_I2C_STATE_READY);
+
+    return buf;
+}
+
 #if EEPROM_ENABLE
 
 nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)

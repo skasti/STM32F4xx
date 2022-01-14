@@ -90,6 +90,7 @@
 #define GPIO_SHIFT13 13
 #define GPIO_MAP     14
 #define GPIO_BITBAND 15
+#define GPIO_IOEXPAND 16
 
 #ifndef IS_NUCLEO_DEVKIT
 #if defined(NUCLEO_F401) || defined(NUCLEO_F411) || defined(NUCLEO_F446)

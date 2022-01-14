@@ -42,7 +42,7 @@
 #error "Axis configuration is not supported!"
 #endif
 
-#define BOARD_NAME "BlackPill"
+#define BOARD_NAME "FLEXiCNC_F411"
 
 // Define step pulse output pins.
 #define STEP_PORT               GPIOA

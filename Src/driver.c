@@ -60,6 +60,10 @@
 #include "flash.h"
 #endif
 
+#if IOEXPAND_ENABLE
+#include "ioexpand.h"
+#endif
+
 #if ETHERNET_ENABLE
   #include "enet.h"
   #if TELNET_ENABLE
@@ -108,6 +112,10 @@ typedef union {
 } debounce_t;
 
 static periph_signal_t *periph_pins = NULL;
+
+#if IOEXPAND_ENABLE
+static ioexpand_t io_expander = {0};
+#endif
 
 static input_signal_t inputpin[] = {
     { .id = Input_Reset,          .port = RESET_PORT,         .pin = RESET_PIN,           .group = PinGroup_Control },
@@ -302,7 +310,9 @@ static output_signal_t outputpin[] = {
     { .id = Output_SpindleDir,      .port = SPINDLE_DIRECTION_PORT, .pin = SPINDLE_DIRECTION_PIN,   .group = PinGroup_SpindleControl },
 #endif
 #endif
+#ifdef COOLANT_FLOOD_PIN
     { .id = Output_CoolantFlood,    .port = COOLANT_FLOOD_PORT,     .pin = COOLANT_FLOOD_PIN,       .group = PinGroup_Coolant },
+#endif
 #ifdef COOLANT_MIST_PIN
     { .id = Output_CoolantMist,     .port = COOLANT_MIST_PORT,      .pin = COOLANT_MIST_PIN,        .group = PinGroup_Coolant },
 #endif
@@ -414,6 +424,17 @@ static void stepperEnable (axes_signals_t enable)
 #if !TRINAMIC_MOTOR_ENABLE
   #ifdef STEPPERS_ENABLE_PORT
     DIGITAL_OUT(STEPPERS_ENABLE_PORT, STEPPERS_ENABLE_PIN, enable.x);
+  #elif STEPPERS_ENABLE_OUTMODE == GPIO_IOEXPAND
+	#ifdef STEPPERS_DISABLEX_PIN
+	ioex_out(STEPPERS_DISABLEX_PIN) = enable.x;
+	#endif
+	#ifdef STEPPERS_DISABLEZ_PIN
+	ioex_out(STEPPERS_DISABLEZ_PIN) = enable.z;
+	#endif
+	#ifdef STEPPERS_DISABLE_PIN
+	ioex_out(STEPPERS_DISABLEZ_PIN) = enable.x;
+	#endif
+	ioexpand_out(io_expander);
   #else
     DIGITAL_OUT(X_ENABLE_PORT, X_ENABLE_PIN, enable.x);
    #ifdef X2_ENABLE_PIN
@@ -1001,14 +1022,24 @@ probe_state_t probeGetState (void)
 inline static void spindle_off (void)
 {
 #ifdef SPINDLE_ENABLE_PIN
+#if SPINDLE_OUTMODE == GPIO_IOEXPAND
+    ioex_out(SPINDLE_ENABLE_PIN) = settings.spindle.invert.on;
+    ioexpand_out(io_expander);
+#else
     DIGITAL_OUT(SPINDLE_ENABLE_PORT, SPINDLE_ENABLE_PIN, settings.spindle.invert.on);
+#endif
 #endif
 }
 
 inline static void spindle_on (void)
 {
 #ifdef SPINDLE_ENABLE_PIN
+#if SPINDLE_OUTMODE == GPIO_IOEXPAND
+    ioex_out(SPINDLE_ENABLE_PIN) = settings.spindle.invert.on;
+    ioexpand_out(io_expander);
+#else
     DIGITAL_OUT(SPINDLE_ENABLE_PORT, SPINDLE_ENABLE_PIN, !settings.spindle.invert.on);
+#endif
 #endif
 #if SPINDLE_SYNC_ENABLE
     spindleDataReset();
@@ -1019,7 +1050,12 @@ inline static void spindle_dir (bool ccw)
 {
 #ifdef SPINDLE_DIRECTION_PIN
     if(hal.driver_cap.spindle_dir)
+		#if SPINDLE_OUTMODE == GPIO_IOEXPAND
+        	ioex_out(SPINDLE_DIRECTION_PIN) = ccw ^ settings.spindle.invert.ccw;
+        	ioexpand_out(io_expander);
+		#else
         DIGITAL_OUT(SPINDLE_DIRECTION_PORT, SPINDLE_DIRECTION_PIN, ccw ^ settings.spindle.invert.ccw);
+#endif
 #endif
 }
 
@@ -1113,10 +1149,18 @@ static spindle_state_t spindleGetState (void)
     spindle_state_t state = {settings.spindle.invert.mask};
 
 #ifdef SPINDLE_ENABLE_PIN
+#if SPINDLE_OUTMODE == GPIO_IOEXPAND
+    state.on = ioex_out(SPINDLE_ENABLE_PIN);
+#else
     state.on = DIGITAL_IN(SPINDLE_ENABLE_PORT, SPINDLE_ENABLE_PIN);
 #endif
+#endif
 #ifdef SPINDLE_DIRECTION_PIN
+#if SPINDLE_OUTMODE == GPIO_IOEXPAND
+    state.ccw = hal.driver_cap.spindle_dir && ioex_out(SPINDLE_DIRECTION_PIN);
+#else
     state.ccw = hal.driver_cap.spindle_dir && DIGITAL_IN(SPINDLE_DIRECTION_PORT, SPINDLE_DIRECTION_PIN);
+#endif
 #endif
     state.value ^= settings.spindle.invert.mask;
 
@@ -1233,9 +1277,17 @@ static void spindleDataReset (void)
 static void coolantSetState (coolant_state_t mode)
 {
     mode.value ^= settings.coolant_invert.mask;
+#if COOLANT_OUTMODE == GPIO_IOEXPAND
+        ioex_out(COOLANT_FLOOD_PIN) = mode.flood;
+        #ifdef COOLANT_MIST_PIN
+        ioex_out(COOLANT_MIST_PIN) = mode.mist;
+        #endif
+        ioexpand_out(io_expander);
+#elif COOLANT_FLOOD_PIN
     DIGITAL_OUT(COOLANT_FLOOD_PORT, COOLANT_FLOOD_PIN, mode.flood);
 #ifdef COOLANT_MIST_PIN
     DIGITAL_OUT(COOLANT_MIST_PORT, COOLANT_MIST_PIN, mode.mist);
+#endif
 #endif
 }
 
@@ -1243,9 +1295,16 @@ static void coolantSetState (coolant_state_t mode)
 static coolant_state_t coolantGetState (void)
 {
     coolant_state_t state = (coolant_state_t){settings.coolant_invert.mask};
-
+#if COOLANT_OUTMODE == GPIO_IOEXPAND
+    state.value = settings.coolant_invert.mask;
+    state.flood = ioex_out(COOLANT_FLOOD_PIN);
+#elif COOLANT_FLOOD_PIN
     state.flood = DIGITAL_IN(COOLANT_FLOOD_PORT, COOLANT_FLOOD_PIN);
+#endif
 #ifdef COOLANT_MIST_PIN
+#if COOLANT_OUTMODE == GPIO_IOEXPAND
+    state.mist = ioex_out(COOLANT_MIST_PIN);
+#endif
     state.mist  = DIGITAL_IN(COOLANT_MIST_PORT, COOLANT_MIST_PIN);
 #endif
     state.value ^= settings.coolant_invert.mask;
@@ -1964,6 +2023,10 @@ bool driver_init (void)
     i2c_init();
 #endif
 
+#if IOEXPAND_ENABLE
+    ioexpand_init();
+#endif
+
 #if EEPROM_ENABLE
     i2c_eeprom_init();
 #elif FLASH_ENABLE
@@ -2008,6 +2071,8 @@ bool driver_init (void)
 #ifdef PROBE_PIN
     hal.driver_cap.probe_pull_up = On;
 #endif
+
+//Can I add stuff here so that the ioports get mapped to I2C functions?
 
 #ifdef HAS_IOPORTS
 
