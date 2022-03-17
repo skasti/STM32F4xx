@@ -137,7 +137,6 @@
 #define AUXOUTPUT3_PIN 			6
 #define AUXOUTPUT_OUTMODE       GPIO_BITBAND
 
-//this is broken because of interrupt contention
 #define AUXINPUT0_PORT          GPIOA
 #define AUXINPUT0_PIN           0
 #define AUXINPUT1_PORT          GPIOA
