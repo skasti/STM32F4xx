@@ -30,7 +30,10 @@
 
 #if I2C_ENABLE
 
-#ifdef I2C1_ALT_PINMAP
+#ifdef FMP_I2C
+  #define I2C1_SCL_PIN 6
+  #define I2C1_SDA_PIN 7
+#elif I2C1_ALT_PINMAP
   #define I2C1_SCL_PIN 6
   #define I2C1_SDA_PIN 7
 #else
@@ -38,11 +41,36 @@
   #define I2C1_SDA_PIN 9
 #endif
 
+#ifdef FMP_I2C
+//#define I2Cport(p) I2CportI(p)
+//#define I2CportI(p) FMPI2C1
+//#undef I2C_PORT
+//#define I2C_PORT FMPI2C1
+#else
 #define I2Cport(p) I2CportI(p)
 #define I2CportI(p) I2C ## p
+#endif
 
+#ifdef FMP_I2C
+//#define I2CPORT I2Cport(FMPI2C1)
+#else
 #define I2CPORT I2Cport(I2C_PORT)
+#endif
 
+#ifdef FMP_I2C
+static FMPI2C_HandleTypeDef i2c_port = {
+    .Instance = FMPI2C1,
+    .Init.Timing = 0xC0000E12,
+    //.Init.DutyCycle = I2C_DUTYCYCLE_2,
+    .Init.OwnAddress1 = 0,
+    .Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT,
+    .Init.DualAddressMode = I2C_DUALADDRESS_DISABLE,
+    .Init.OwnAddress2 = 0,
+    .Init.OwnAddress2Masks = FMPI2C_OA2_NOMASK,
+    .Init.GeneralCallMode = I2C_GENERALCALL_DISABLE,
+    .Init.NoStretchMode = I2C_NOSTRETCH_DISABLE
+};
+#else
 static I2C_HandleTypeDef i2c_port = {
     .Instance = I2CPORT,
     .Init.ClockSpeed = 100000,
@@ -54,6 +82,7 @@ static I2C_HandleTypeDef i2c_port = {
     .Init.GeneralCallMode = I2C_GENERALCALL_DISABLE,
     .Init.NoStretchMode = I2C_NOSTRETCH_DISABLE
 };
+#endif
 
 void i2c_init (void)
 {
@@ -125,6 +154,40 @@ void i2c_init (void)
     };
 #endif
 
+#if FMP_I2C
+    GPIO_InitTypeDef GPIO_InitStruct = {
+        .Pin = (1 << I2C1_SCL_PIN)|(1 << I2C1_SDA_PIN),
+        .Mode = GPIO_MODE_AF_OD,
+        .Pull = GPIO_PULLUP,
+        .Speed = GPIO_SPEED_FREQ_VERY_HIGH,
+        .Alternate = GPIO_AF4_FMPI2C1
+    };
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+    __HAL_RCC_FMPI2C1_CLK_ENABLE();
+
+    HAL_FMPI2C_Init(&i2c_port);
+
+    HAL_NVIC_EnableIRQ(FMPI2C1_EV_IRQn);
+    HAL_NVIC_EnableIRQ(FMPI2C1_ER_IRQn);
+
+    static const periph_pin_t scl = {
+        .function = Output_SCK,
+        .group = PinGroup_I2C,
+        .port = GPIOC,
+        .pin = 6,
+        .mode = { .mask = PINMODE_OD }
+    };
+
+    static const periph_pin_t sda = {
+        .function = Bidirectional_SDA,
+        .group = PinGroup_I2C,
+        .port = GPIOC,
+        .pin = 7,
+        .mode = { .mask = PINMODE_OD }
+    };
+#endif
+
     hal.periph_port.register_pin(&scl);
     hal.periph_port.register_pin(&sda);
 }
@@ -139,6 +202,16 @@ void I2C1_ER_IRQHandler(void)
 {
   HAL_I2C_ER_IRQHandler(&i2c_port);
 }
+#elif FMP_I2C
+void FMPI2C1_EV_IRQHandler(void)
+{
+  HAL_FMPI2C_EV_IRQHandler(&i2c_port);
+}
+
+void FMPI2C1_ER_IRQHandler(void)
+{
+  HAL_FMPI2C_ER_IRQHandler(&i2c_port);
+}
 #else
 void I2C2_EV_IRQHandler(void)
 {
@@ -151,6 +224,19 @@ void I2C2_ER_IRQHandler(void)
 }
 #endif
 
+#ifdef FMP_I2C
+void I2C_Send (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes, bool block)
+{
+	//wait for bus to be ready
+	while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
+	//need to replace this Pico function call
+
+    HAL_FMPI2C_Master_Transmit_DMA(&i2c_port,  i2cAddr, buf, bytes);
+
+    if (block)
+    	while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
+}
+#else
 void I2C_Send (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes, bool block)
 {
 	//wait for bus to be ready
@@ -162,7 +248,21 @@ void I2C_Send (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes, bool block)
     if (block)
     	while (HAL_I2C_GetState(&i2c_port) != HAL_I2C_STATE_READY);
 }
+#endif
 
+#ifdef FMP_I2C
+uint8_t *I2C_ReadRegister (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes, bool block)
+{
+
+	while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
+    HAL_FMPI2C_Mem_Read(&i2c_port, i2cAddr, buf[0], I2C_MEMADD_SIZE_8BIT, buf, 1, 100);
+
+    //if (block)
+    //	while (HAL_I2C_GetState(&i2c_port) != HAL_I2C_STATE_READY);
+
+    return buf;
+}
+#else
 uint8_t *I2C_ReadRegister (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes, bool block)
 {
 
@@ -174,9 +274,30 @@ uint8_t *I2C_ReadRegister (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes, bool 
 
     return buf;
 }
+#endif
 
 #if EEPROM_ENABLE
+#ifdef FMP_I2C
+nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
+{
+    while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
 
+//    while (HAL_I2C_IsDeviceReady(&i2c_port, (uint16_t)(0xA0), 3, 100) != HAL_OK);
+    HAL_StatusTypeDef ret;
+
+    if(read)
+        ret = HAL_FMPI2C_Mem_Read(&i2c_port, i2c->address << 1, i2c->word_addr, i2c->word_addr_bytes == 2 ? I2C_MEMADD_SIZE_16BIT : I2C_MEMADD_SIZE_8BIT, i2c->data, i2c->count, 100);
+    else {
+        ret = HAL_FMPI2C_Mem_Write(&i2c_port, i2c->address << 1, i2c->word_addr, i2c->word_addr_bytes == 2 ? I2C_MEMADD_SIZE_16BIT : I2C_MEMADD_SIZE_8BIT, i2c->data, i2c->count, 100);
+#if !EEPROM_IS_FRAM
+        hal.delay_ms(5, NULL);
+#endif
+    }
+    i2c->data += i2c->count;
+
+    return ret == HAL_OK ? NVS_TransferResult_OK : NVS_TransferResult_Failed;
+}
+#else
 nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
 {
     while (HAL_I2C_GetState(&i2c_port) != HAL_I2C_STATE_READY);
@@ -196,7 +317,7 @@ nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
 
     return ret == HAL_OK ? NVS_TransferResult_OK : NVS_TransferResult_Failed;
 }
-
+#endif //FMP_I2C
 #endif // EEPROM_ENABLE
 
 #if KEYPAD_ENABLE == 1
@@ -204,6 +325,23 @@ nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
 static uint8_t keycode = 0;
 static keycode_callback_ptr keypad_callback = NULL;
 
+#ifdef FMP_I2C
+void I2C_GetKeycode (uint32_t i2cAddr, keycode_callback_ptr callback)
+{
+    keycode = 0;
+    keypad_callback = callback;
+
+    HAL_FMPI2C_Master_Receive_IT(&i2c_port, KEYPAD_I2CADDR << 1, &keycode, 1);
+}
+
+void HAL_FMPI2C_MasterRxCpltCallback(FMPI2C_HandleTypeDef *hi2c)
+{
+    if(keypad_callback && keycode != 0) {
+        keypad_callback(keycode);
+        keypad_callback = NULL;
+    }
+}
+#else
 void I2C_GetKeycode (uint32_t i2cAddr, keycode_callback_ptr callback)
 {
     keycode = 0;
@@ -219,6 +357,7 @@ void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
         keypad_callback = NULL;
     }
 }
+#endif
 
 #endif // KEYPAD_ENABLE == 1
 

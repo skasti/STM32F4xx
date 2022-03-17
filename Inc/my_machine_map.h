@@ -28,9 +28,14 @@
 #endif
 
 #define BOARD_NAME "FlexiCNC"
-#define I2C_PORT 1
-#define IOEXPAND_ENABLE 1
-//#define HAS_IOPORTS 1
+#ifdef I2C_ENABLE
+  #define FMP_I2C 1
+#endif
+
+//#define EEPROM_ENABLE 1
+#define STM32F446xx 1
+//#define IOEXPAND_ENABLE 1
+#define HAS_IOPORTS 1
 //#define HAS_BOARD_INIT 1
 
 #if KEYPAD_ENABLE
@@ -38,34 +43,35 @@
 #endif
 
 // Define step pulse output pins.
-#define X_STEP_PORT             GPIOB
-#define X_STEP_PIN              4
-#define Y_STEP_PORT				GPIOB
-#define Y_STEP_PIN              5
-#define Z_STEP_PORT				GPIOB
-#define Z_STEP_PIN              12
+#define X_STEP_PORT             GPIOC
+#define X_STEP_PIN              2
+#define Y_STEP_PORT				      GPIOC
+#define Y_STEP_PIN              15
+#define Z_STEP_PORT				      GPIOB
+#define Z_STEP_PIN              13
 #define STEP_OUTMODE            GPIO_BITBAND
 //#define STEP_PINMODE            PINMODE_OD // Uncomment for open drain outputs
 
 // Define step direction output pins.
-#define X_DIRECTION_PORT        GPIOB
-#define X_DIRECTION_PIN         14
-#define Y_DIRECTION_PORT        GPIOB
-#define Y_DIRECTION_PIN         15
-#define Z_DIRECTION_PORT        GPIOB
-#define Z_DIRECTION_PIN         2
+#define X_DIRECTION_PORT        GPIOC
+#define X_DIRECTION_PIN         0
+#define Y_DIRECTION_PORT        GPIOC
+#define Y_DIRECTION_PIN         1
+#define Z_DIRECTION_PORT        GPIOA
+#define Z_DIRECTION_PIN         4
 #define DIRECTION_OUTMODE       GPIO_BITBAND
 //#define DIRECTION_PINMODE       PINMODE_OD // Uncomment for open drain outputs
 
 // Define stepper driver enable/disable output pin.
-#define STEPPERS_ENABLE_PIN        7
-#define STEPPERS_ENABLE_OUTMODE    GPIO_IOEXPAND
+#define STEPPERS_ENABLE_PORT       GPIOA
+#define STEPPERS_ENABLE_PIN        14
+#define STEPPERS_ENABLE_OUTMODE    GPIO_BITBAND
 
 // Define homing/hard limit switch input pins.
-#define X_LIMIT_PORT            GPIOC
-#define X_LIMIT_PIN             13
-#define Y_LIMIT_PORT            GPIOB
-#define Y_LIMIT_PIN             9
+#define X_LIMIT_PORT            GPIOA
+#define X_LIMIT_PIN             5
+#define Y_LIMIT_PORT            GPIOC
+#define Y_LIMIT_PIN             11
 #define Z_LIMIT_PORT            GPIOC
 #define Z_LIMIT_PIN             13
 #define LIMIT_INMODE            GPIO_BITBAND
@@ -74,82 +80,81 @@
 #if N_ABC_MOTORS == 1
 #define M3_AVAILABLE
 #define M3_STEP_PORT            GPIOB
-#define M3_STEP_PIN             13
+#define M3_STEP_PIN             14
 #define M3_DIRECTION_PORT       GPIOB
-#define M3_DIRECTION_PIN        10
+#define M3_DIRECTION_PIN        15
 #if N_AUTO_SQUARED
 #define M3_LIMIT_PORT           GPIOB
-#define M3_LIMIT_PIN            1
+#define M3_LIMIT_PIN            6
 #endif
 #endif
 
 // Define ganged axis or A axis step pulse and step direction output pins.
 #if N_ABC_MOTORS == 2
 #define M34AVAILABLE
-#define M4_STEP_PORT            GPIOA
-#define M4_STEP_PIN             14
-#define M4_DIRECTION_PORT       GPIOA
-#define M4_DIRECTION_PIN        15
+#define M4_STEP_PORT            GPIOC
+#define M4_STEP_PIN             8
+#define M4_DIRECTION_PORT       GPIOC
+#define M4_DIRECTION_PIN        9
 #if N_AUTO_SQUARED > 1
-#error "Limit Configuration not supported!"
+#define M4_LIMIT_PORT           GPIOC
+#define M4_LIMIT_PIN            14
 #endif
 #endif
 
 // Define spindle enable and spindle direction output pins.
-#define SPINDLE_ENABLE_PORT         GPIO_IOEXPAND
+#define SPINDLE_ENABLE_PORT         GPIOB
 #define SPINDLE_ENABLE_PIN          2
-#define SPINDLE_DIRECTION_PORT      GPIO_IOEXPAND
-#define SPINDLE_DIRECTION_PIN       5
-#define SPINDLE_OUTMODE             GPIO_IOEXPAND
+#define SPINDLE_DIRECTION_PORT      GPIOB
+#define SPINDLE_DIRECTION_PIN       1
+#define SPINDLE_OUTMODE             GPIO_BITBAND
 
 // Define spindle PWM output pin.
 #define SPINDLE_PWM_PORT_BASE   GPIOA_BASE
 #define SPINDLE_PWM_PIN         8
 
 // Define flood and mist coolant enable output pins.
-/*#define COOLANT_FLOOD_PORT          GPIO_IOEXPAND
-#define COOLANT_FLOOD_PIN           1
-#define COOLANT_MIST_PORT           GPIO_IOEXPAND
-#define COOLANT_MIST_PIN            0
-#define COOLANT_OUTMODE             GPIO_IOEXPAND
-*/
+#define COOLANT_FLOOD_PORT          GPIOC
+#define COOLANT_FLOOD_PIN           12
+#define COOLANT_MIST_PORT           GPIOA
+#define COOLANT_MIST_PIN            7
+#define COOLANT_OUTMODE             GPIO_BITBAND
 
-/*
-#define AUXOUTPUT0_PORT 		GPIO_IOEXPAND
-#define AUXOUTPUT0_PIN 			4
-#define AUXOUTPUT1_PORT 		GPIO_IOEXPAND
-#define AUXOUTPUT1_PIN 			5
-#define AUXOUTPUT2_PORT 		GPIO_IOEXPAND
-#define AUXOUTPUT2_PIN 			6
-#define AUXOUTPUT3_PORT 		GPIO_IOEXPAND
-#define AUXOUTPUT3_PIN 			7
-#define AUXOUTPUT_OUTMODE       GPIO_IOEXPAND
-*/
-/*this is broken because of interrupt contention
-#define AUXINPUT0_PORT          GPIOB
-#define AUXINPUT0_PIN           14
+#define AUXOUTPUT0_PORT 		GPIOD
+#define AUXOUTPUT0_PIN 			2
+#define AUXOUTPUT1_PORT 		GPIOB
+#define AUXOUTPUT1_PIN 			0
+#define AUXOUTPUT2_PORT 		GPIOA
+#define AUXOUTPUT2_PIN 			3
+#define AUXOUTPUT3_PORT 		GPIOA
+#define AUXOUTPUT3_PIN 			6
+#define AUXOUTPUT_OUTMODE       GPIO_BITBAND
+
+//this is broken because of interrupt contention
+#define AUXINPUT0_PORT          GPIOA
+#define AUXINPUT0_PIN           0
 #define AUXINPUT1_PORT          GPIOA
-#define AUXINPUT1_PIN           15
+#define AUXINPUT1_PIN           1
 #define AUXINPUT2_PORT          GPIOA
-#define AUXINPUT2_PIN           15
-*/
+#define AUXINPUT2_PIN           2
+
 
 // Define user-control controls (cycle start, reset, feed hold) input pins.
 #define RESET_PORT            	GPIOB
-#define RESET_PIN               8
+#define RESET_PIN               12
 #define FEED_HOLD_PORT          GPIOB
-#define FEED_HOLD_PIN           6
+#define FEED_HOLD_PIN           8
 #define CYCLE_START_PORT      	GPIOB
-#define CYCLE_START_PIN         7
+#define CYCLE_START_PIN         9
 #define CONTROL_INMODE 			GPIO_BITBAND
 
 // Define probe switch input pin.
 #define PROBE_PORT              GPIOB
-#define PROBE_PIN               0
+#define PROBE_PIN               7
 
 #if I2C_STROBE_ENABLE
 #define I2C_STROBE_PORT         GPIOB
-#define I2C_STROBE_PIN          3
+#define I2C_STROBE_PIN          10
 #endif
 
 #if SDCARD_ENABLE

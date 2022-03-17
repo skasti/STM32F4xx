@@ -307,7 +307,11 @@
 #endif
 
 #if I2C_ENABLE && !defined(I2C_PORT)
-#define I2C_PORT 2 // GPIOB, SCL_PIN = 10, SDA_PIN = 11
+  #ifdef FMP_I2C
+  #define I2C_PORT 4
+  #else
+  #define I2C_PORT 2 // GPIOB, SCL_PIN = 10, SDA_PIN = 11
+  #endif
 #endif
 
 #if SPI_ENABLE && !defined(SPI_PORT)
