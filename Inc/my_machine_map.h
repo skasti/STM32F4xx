@@ -32,6 +32,9 @@
   #define FMP_I2C 1
 #endif
 
+#define SERIAL2_MOD
+#define SERIAL3_MOD
+
 //#define EEPROM_ENABLE 1
 #define STM32F446xx 1
 //#define IOEXPAND_ENABLE 1
@@ -40,6 +43,10 @@
 
 #if KEYPAD_ENABLE
 #define I2C_STROBE_ENABLE 1
+#endif
+
+#if MODBUS_ENABLE
+#define MODBUS_SERIAL_PORT 3
 #endif
 
 // Define step pulse output pins.

@@ -39,6 +39,12 @@ static stream_tx_buffer_t txbuf2 = {0};
 static enqueue_realtime_command_ptr enqueue_realtime_command2 = protocol_enqueue_realtime_command;
 #endif
 
+#ifdef SERIAL3_MOD
+static stream_rx_buffer_t rxbuf3 = {0};
+static stream_tx_buffer_t txbuf3 = {0};
+static enqueue_realtime_command_ptr enqueue_realtime_command3 = protocol_enqueue_realtime_command;
+#endif
+
 #if IS_NUCLEO_DEVKIT
 
   #define USART USART2
@@ -60,6 +66,13 @@ static enqueue_realtime_command_ptr enqueue_realtime_command2 = protocol_enqueue
 
 #define UART2 USART2
 #define UART2_IRQHandler USART2_IRQHandler
+
+#endif
+
+#ifdef SERIAL3_MOD
+
+#define UART3 USART3
+#define UART3_IRQHandler USART3_IRQHandler
 
 #endif
 
@@ -192,6 +205,31 @@ void serialRegisterStreams (void)
     hal.periph_port.register_pin(&tx2);
 
 #endif // SERIAL2_MOD
+
+#ifdef SERIAL3_MOD
+
+    static const periph_pin_t tx3 = {
+        .function = Output_TX,
+        .group = PinGroup_UART3,
+        .port = GPIOC,
+        .pin = 10,
+        .mode = { .mask = PINMODE_OUTPUT },
+        .description = "UART3"
+    };
+
+    static const periph_pin_t rx3 = {
+        .function = Input_RX,
+        .group = PinGroup_UART3,
+        .port = GPIOC,
+        .pin =5,
+        .mode = { .mask = PINMODE_NONE },
+        .description = "UART3"
+    };
+
+    hal.periph_port.register_pin(&rx3);
+    hal.periph_port.register_pin(&tx3);
+
+#endif // SERIAL3_MOD
 }
 
 //
@@ -696,6 +734,264 @@ void UART2_IRQHandler (void)
         txbuf2.tail = tail = BUFNEXT(tail, txbuf2); // and increment pointer
         if(tail == txbuf2.head)                     // If buffer empty then
             UART2->CR1 &= ~USART_CR1_TXEIE;         // disable UART TX interrupt
+   }
+}
+#endif
+
+#ifdef SERIAL3_MOD
+
+//
+// Returns number of free characters in serial input buffer
+//
+static uint16_t serial3RxFree (void)
+{
+    uint32_t tail = rxbuf3.tail, head = rxbuf3.head;
+
+    return (RX_BUFFER_SIZE - 1) - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
+}
+
+//
+// Returns number of characters in serial input buffer
+//
+static uint16_t serial3RxCount (void)
+{
+    uint32_t tail = rxbuf3.tail, head = rxbuf3.head;
+
+    return BUFCOUNT(head, tail, RX_BUFFER_SIZE);
+}
+
+//
+// Flushes the serial input buffer
+//
+static void serial3RxFlush (void)
+{
+    rxbuf3.tail = rxbuf3.head;
+}
+
+//
+// Flushes and adds a CAN character to the serial input buffer
+//
+static void serial3RxCancel (void)
+{
+    rxbuf3.data[rxbuf3.head] = ASCII_CAN;
+    rxbuf3.tail = rxbuf3.head;
+    rxbuf3.head = BUFNEXT(rxbuf3.head, rxbuf3);
+}
+
+//
+// Writes a character to the serial output stream
+//
+static bool serial3PutC (const char c)
+{
+    uint32_t next_head = BUFNEXT(txbuf2.head, txbuf2);   // Set and update head pointer
+
+    while(txbuf3.tail == next_head) {           // While TX buffer full
+        if(!hal.stream_blocking_callback())     // check if blocking for space,
+            return false;                       // exit if not (leaves TX buffer in an inconsistent state)
+        UART3->CR1 |= USART_CR1_TXEIE;          // Enable TX interrupts???
+    }
+
+    txbuf3.data[txbuf3.head] = c;               // Add data to buffer
+    txbuf3.head = next_head;                    // and update head pointer
+
+    UART3->CR1 |= USART_CR1_TXEIE;              // Enable TX interrupts
+
+    return true;
+}
+
+//
+// Writes a null terminated string to the serial output stream, blocks if buffer full
+//
+static void serial3WriteS (const char *s)
+{
+    char c, *ptr = (char *)s;
+
+    while((c = *ptr++) != '\0')
+        serial3PutC(c);
+}
+
+// Writes a number of characters from a buffer to the serial output stream, blocks if buffer full
+//
+static void serial3Write (const char *s, uint16_t length)
+{
+    char *ptr = (char *)s;
+
+    while(length--)
+        serial3PutC(*ptr++);
+}
+
+//
+// Flushes the serial output buffer
+//
+static void serial3TxFlush (void)
+{
+    UART3->CR1 &= ~USART_CR1_TXEIE;     // Disable TX interrupts
+    txbuf3.tail = txbuf3.head;
+}
+
+//
+// Returns number of characters pending transmission
+//
+static uint16_t serial3TxCount (void)
+{
+    uint32_t tail = txbuf3.tail, head = txbuf3.head;
+
+    return BUFCOUNT(head, tail, TX_BUFFER_SIZE) + (UART3->SR & USART_SR_TC ? 0 : 1);
+}
+
+//
+// serialGetC - returns -1 if no data available
+//
+static int16_t serial3GetC (void)
+{
+    uint_fast16_t tail = rxbuf2.tail;       // Get buffer pointer
+
+    if(tail == rxbuf3.head)
+        return -1; // no data available
+
+    char data = rxbuf3.data[tail];          // Get next character
+    rxbuf3.tail = BUFNEXT(tail, rxbuf3);    // and update pointer
+
+    return (int16_t)data;
+}
+
+static bool serial3SuspendInput (bool suspend)
+{
+    return stream_rx_suspend(&rxbuf3, suspend);
+}
+
+static bool serial3SetBaudRate (uint32_t baud_rate)
+{
+#if IS_NUCLEO_DEVKIT
+    UART2->CR1 = USART_CR1_RE|USART_CR1_TE;
+    UART2->BRR = UART_BRR_SAMPLING16(HAL_RCC_GetPCLK2Freq(), baud_rate);
+    UART2->CR1 |= (USART_CR1_UE|USART_CR1_RXNEIE);
+#else
+    UART3->CR1 = USART_CR1_RE|USART_CR1_TE;
+    UART3->BRR = UART_BRR_SAMPLING16(HAL_RCC_GetPCLK1Freq(), baud_rate);
+    UART3->CR1 |= (USART_CR1_UE|USART_CR1_RXNEIE);
+#endif
+
+    return true;
+}
+
+static bool serial3Disable (bool disable)
+{
+    if(disable)
+        UART3->CR1 &= ~USART_CR1_RXNEIE;
+    else
+        UART3->CR1 |= USART_CR1_RXNEIE;
+
+    return true;
+}
+
+static bool serial3EnqueueRtCommand (char c)
+{
+    return enqueue_realtime_command3(c);
+}
+
+static enqueue_realtime_command_ptr serial3SetRtHandler (enqueue_realtime_command_ptr handler)
+{
+    enqueue_realtime_command_ptr prev = enqueue_realtime_command3;
+
+    if(handler)
+        enqueue_realtime_command3 = handler;
+
+    return prev;
+}
+
+const io_stream_t *serial3Init (uint32_t baud_rate)
+{
+    static const io_stream_t stream = {
+        .type = StreamType_Serial,
+        .instance = 1,
+        .state.connected = On,
+        .read = serial3GetC,
+        .write = serial3WriteS,
+        .write_n =  serial3Write,
+        .write_char = serial3PutC,
+        .enqueue_rt_command = serial3EnqueueRtCommand,
+        .get_rx_buffer_free = serial3RxFree,
+        .get_rx_buffer_count = serial3RxCount,
+        .get_tx_buffer_count = serial3TxCount,
+        .reset_write_buffer = serial3TxFlush,
+        .reset_read_buffer = serial3RxFlush,
+        .cancel_read_buffer = serial3RxCancel,
+        .suspend_read = serial3SuspendInput,
+        .disable_rx = serial3Disable,
+        .set_baud_rate = serial3SetBaudRate,
+        .set_enqueue_rt_handler = serial3SetRtHandler
+    };
+
+    if(serial[1].flags.claimed)
+        return NULL;
+
+    serial[1].flags.claimed = On;
+
+#if IS_NUCLEO_DEVKIT
+
+    __HAL_RCC_USART1_CLK_ENABLE();
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+
+    GPIO_InitTypeDef GPIO_InitStructure = {
+        .Mode = GPIO_MODE_AF_PP,
+        .Pull = GPIO_NOPULL,
+        .Speed = GPIO_SPEED_FREQ_VERY_HIGH,
+        .Pin = GPIO_PIN_9|GPIO_PIN_10,
+        .Alternate = GPIO_AF7_USART1
+    };
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    serial2SetBaudRate(baud_rate);
+
+    HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(USART1_IRQn);
+
+#else
+
+    __HAL_RCC_USART3_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+
+    GPIO_InitTypeDef GPIO_InitStructure = {
+        .Mode = GPIO_MODE_AF_PP,
+        .Pull = GPIO_NOPULL,
+        .Speed = GPIO_SPEED_FREQ_VERY_HIGH,
+        .Pin = GPIO_PIN_5|GPIO_PIN_10,
+        .Alternate = GPIO_AF7_USART3
+    };
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+    serial2SetBaudRate(baud_rate);
+
+    HAL_NVIC_SetPriority(USART3_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(USART3_IRQn);
+
+#endif
+
+    return &stream;
+}
+
+void UART3_IRQHandler (void)
+{
+    if(UART3->SR & USART_SR_RXNE) {
+        uint32_t data = UART3->DR;
+        if(!enqueue_realtime_command3((char)data)) {            // Check and strip realtime commands...
+            uint16_t next_head = BUFNEXT(rxbuf3.head, rxbuf3);  // Get and increment buffer pointer
+            if(next_head == rxbuf3.tail)                        // If buffer full
+                rxbuf3.overflow = 1;                            // flag overflow
+            else {
+                rxbuf3.data[rxbuf3.head] = (char)data;          // if not add data to buffer
+                rxbuf3.head = next_head;                        // and update pointer
+            }
+        }
+    }
+
+    if((UART3->SR & USART_SR_TXE) && (UART3->CR1 & USART_CR1_TXEIE)) {
+        uint_fast16_t tail = txbuf3.tail;           // Get buffer pointer
+        UART3->DR = txbuf3.data[tail];              // Send next character
+        txbuf3.tail = tail = BUFNEXT(tail, txbuf3); // and increment pointer
+        if(tail == txbuf3.head)                     // If buffer empty then
+            UART3->CR1 &= ~USART_CR1_TXEIE;         // disable UART TX interrupt
    }
 }
 #endif
