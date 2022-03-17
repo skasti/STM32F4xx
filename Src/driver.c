@@ -4,7 +4,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2019-2021 Terje Io
+  Copyright (c) 2019-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,8 +33,9 @@
 #include "grbl/protocol.h"
 #include "grbl/motor_pins.h"
 #include "grbl/pin_bits_masks.h"
+#include "grbl/state_machine.h"
 
-#ifdef I2C_PORT
+#if I2C_ENABLE
 #include "i2c.h"
 #endif
 
@@ -54,6 +55,10 @@
 
 #if PPI_ENABLE
 #include "laser/ppi.h"
+#endif
+
+#if KEYPAD_ENABLE == 2
+#include "keypad/keypad.h"
 #endif
 
 #if FLASH_ENABLE
@@ -86,18 +91,25 @@
 #define SAFETY_DOOR_BIT 0
 #endif
 
+#ifdef MPG_MODE_PIN
+#define MPG_MODE_BIT (1<<MPG_MODE_PIN)
+#else
+#define MPG_MODE_BIT 0
+#endif
+
+
 #if CONTROL_MASK != (RESET_BIT+FEED_HOLD_BIT+CYCLE_START_BIT+SAFETY_DOOR_BIT)
 #error Interrupt enabled input pins must have unique pin numbers!
 #endif
 
-#define DRIVER_IRQMASK (LIMIT_MASK|CONTROL_MASK|I2C_STROBE_BIT|SPINDLE_INDEX_BIT)
+#define DRIVER_IRQMASK (LIMIT_MASK|CONTROL_MASK|I2C_STROBE_BIT|SPINDLE_INDEX_BIT|MPG_MODE_BIT)
 
 #ifdef Z_LIMIT_POLL
-#if (DRIVER_IRQMASK-Z_LIMIT_BIT) != (LIMIT_MASK-Z_LIMIT_BIT+CONTROL_MASK+I2C_STROBE_BIT+SPINDLE_INDEX_BIT)
+#if (DRIVER_IRQMASK-Z_LIMIT_BIT) != (LIMIT_MASK-Z_LIMIT_BIT+CONTROL_MASK+I2C_STROBE_BIT+SPINDLE_INDEX_BIT+MPG_MODE_BIT)
 #error Interrupt enabled input pins must have unique pin numbers!
 #endif
 #else
-#if DRIVER_IRQMASK != (LIMIT_MASK+CONTROL_MASK+I2C_STROBE_BIT+SPINDLE_INDEX_BIT)
+#if DRIVER_IRQMASK != (LIMIT_MASK+CONTROL_MASK+I2C_STROBE_BIT+SPINDLE_INDEX_BIT+MPG_MODE_BIT)
 #error Interrupt enabled input pins must have unique pin numbers!
 #endif
 #endif
@@ -128,10 +140,10 @@ static input_signal_t inputpin[] = {
     { .id = Input_Probe,          .port = PROBE_PORT,         .pin = PROBE_PIN,           .group = PinGroup_Probe },
 #endif
 #ifdef I2C_STROBE_PIN
-    { .id = Input_KeypadStrobe,   .port = I2C_STROBE_PORT,        .pin = I2C_STROBE_PIN,   .group = PinGroup_Keypad },
+    { .id = Input_KeypadStrobe,   .port = I2C_STROBE_PORT,    .pin = I2C_STROBE_PIN,      .group = PinGroup_Keypad },
 #endif
-#ifdef MODE_SWITCH_PIN
-    { .id = Input_ModeSelect,     .port = MODE_PORT,          .pin = MODE_SWITCH_PIN,     .group = PinGroup_MPG },
+#ifdef MPG_MODE_PIN
+    { .id = Input_MPGSelect,      .port = MPG_MODE_PORT,      .pin = MPG_MODE_PIN,        .group = PinGroup_MPG },
 #endif
 // Limit input pins must be consecutive in this array
     { .id = Input_LimitX,         .port = X_LIMIT_PORT,       .pin = X_LIMIT_PIN,         .group = PinGroup_Limit },
@@ -142,43 +154,43 @@ static input_signal_t inputpin[] = {
 #ifdef Y2_LIMIT_PIN
     { .id = Input_LimitY_2,       .port = Y2_LIMIT_PORT,      .pin = Y2_LIMIT_PIN,        .group = PinGroup_Limit },
 #endif
-	{ .id = Input_LimitZ,         .port = Z_LIMIT_PORT,       .pin = Z_LIMIT_PIN,         .group = PinGroup_Limit }
+    { .id = Input_LimitZ,         .port = Z_LIMIT_PORT,       .pin = Z_LIMIT_PIN,         .group = PinGroup_Limit },
 #ifdef Z2_LIMIT_PIN
-  , { .id = Input_LimitZ_2,       .port = Z2_LIMIT_PORT,      .pin = Z2_LIMIT_PIN,        .group = PinGroup_Limit }
+  , { .id = Input_LimitZ_2,       .port = Z2_LIMIT_PORT,      .pin = Z2_LIMIT_PIN,        .group = PinGroup_Limit },
 #endif
 #ifdef A_LIMIT_PIN
-  , { .id = Input_LimitA,         .port = A_LIMIT_PORT,       .pin = A_LIMIT_PIN,         .group = PinGroup_Limit }
+    { .id = Input_LimitA,         .port = A_LIMIT_PORT,       .pin = A_LIMIT_PIN,         .group = PinGroup_Limit },
 #endif
 #ifdef B_LIMIT_PIN
-  , { .id = Input_LimitB,         .port = B_LIMIT_PORT,       .pin = B_LIMIT_PIN,         .group = PinGroup_Limit }
+    { .id = Input_LimitB,         .port = B_LIMIT_PORT,       .pin = B_LIMIT_PIN,         .group = PinGroup_Limit },
 #endif
 #ifdef C_LIMIT_PIN
-  , { .id = Input_LimitC,         .port = C_LIMIT_PORT,       .pin = C_LIMIT_PIN,         .group = PinGroup_Limit }
+    { .id = Input_LimitC,         .port = C_LIMIT_PORT,       .pin = C_LIMIT_PIN,         .group = PinGroup_Limit },
 #endif
 #if SPINDLE_SYNC_ENABLE
-  , { .id = Input_SpindleIndex,   .port = SPINDLE_INDEX_PORT, .pin = SPINDLE_INDEX_PIN,   .group = PinGroup_SpindleIndex }
+    { .id = Input_SpindleIndex,   .port = SPINDLE_INDEX_PORT, .pin = SPINDLE_INDEX_PIN,   .group = PinGroup_SpindleIndex },
 #endif
 // Aux input pins must be consecutive in this array
 #ifdef AUXINPUT0_PIN
-  , { .id = Input_Aux0,           .port = AUXINPUT0_PORT,     .pin = AUXINPUT0_PIN,       .group = PinGroup_AuxInput }
+    { .id = Input_Aux0,           .port = AUXINPUT0_PORT,     .pin = AUXINPUT0_PIN,       .group = PinGroup_AuxInput },
 #endif
 #ifdef AUXINPUT1_PIN
-  , { .id = Input_Aux1,           .port = AUXINPUT1_PORT,     .pin = AUXINPUT1_PIN,       .group = PinGroup_AuxInput }
+    { .id = Input_Aux1,           .port = AUXINPUT1_PORT,     .pin = AUXINPUT1_PIN,       .group = PinGroup_AuxInput },
 #endif
 #ifdef AUXINPUT2_PIN
-  , { .id = Input_Aux2,           .port = AUXINPUT2_PORT,     .pin = AUXINPUT2_PIN,       .group = PinGroup_AuxInput }
+    { .id = Input_Aux2,           .port = AUXINPUT2_PORT,     .pin = AUXINPUT2_PIN,       .group = PinGroup_AuxInput },
 #endif
 #ifdef AUXINPUT3_PIN
-  , { .id = Input_Aux3,           .port = AUXINPUT3_PORT,     .pin = AUXINPUT3_PIN,       .group = PinGroup_AuxInput }
+    { .id = Input_Aux3,           .port = AUXINPUT3_PORT,     .pin = AUXINPUT3_PIN,       .group = PinGroup_AuxInput },
 #endif
 #ifdef AUXINPUT4_PIN
-  , { .id = Input_Aux4,           .port = AUXINPUT4_PORT,     .pin = AUXINPUT4_PIN,       .group = PinGroup_AuxInput }
+    { .id = Input_Aux4,           .port = AUXINPUT4_PORT,     .pin = AUXINPUT4_PIN,       .group = PinGroup_AuxInput },
 #endif
-#ifdef AUXINPUT3_PIN
-  , { .id = Input_Aux5,           .port = AUXINPUT5_PORT,     .pin = AUXINPUT5_PIN,       .group = PinGroup_AuxInput }
+#ifdef AUXINPUT5_PIN
+    { .id = Input_Aux5,           .port = AUXINPUT5_PORT,     .pin = AUXINPUT5_PIN,       .group = PinGroup_AuxInput },
 #endif
 #ifdef AUXINPUT6_PIN
-  , { .id = Input_Aux6,           .port = AUXINPUT6_PORT,     .pin = AUXINPUT6_PIN,       .group = PinGroup_AuxInput }
+    { .id = Input_Aux6,           .port = AUXINPUT6_PORT,     .pin = AUXINPUT6_PIN,       .group = PinGroup_AuxInput }
 #endif
 };
 
@@ -335,10 +347,10 @@ static output_signal_t outputpin[] = {
     { .id = Output_Aux4,            .port = AUXOUTPUT4_PORT,        .pin = AUXOUTPUT4_PIN,          .group = PinGroup_AuxOutput },
 #endif
 #ifdef AUXOUTPUT5_PORT
-    { .id = Output_Aux5,            .port = AUXOUTPUT5_PORT,        .pin = AUXOUTPUT5_PIN,          .group = PinGroup_AuxOutput }
+    { .id = Output_Aux5,            .port = AUXOUTPUT5_PORT,        .pin = AUXOUTPUT5_PIN,          .group = PinGroup_AuxOutput },
 #endif
 #ifdef AUXOUTPUT6_PORT
-    { .id = Output_Aux6,            .port = AUXOUTPUT6_PORT,        .pin = AUXOUTPUT6_PIN,          .group = PinGroup_AuxOutput }
+    { .id = Output_Aux6,            .port = AUXOUTPUT6_PORT,        .pin = AUXOUTPUT6_PIN,          .group = PinGroup_AuxOutput },
 #endif
 #ifdef AUXOUTPUT7_PORT
     { .id = Output_Aux7,            .port = AUXOUTPUT7_PORT,        .pin = AUXOUTPUT7_PIN,          .group = PinGroup_AuxOutput }
@@ -405,11 +417,10 @@ static spindle_data_t *spindleGetData (spindle_data_request_t request);
 static void driver_delay (uint32_t ms, delay_callback_ptr callback)
 {
     if((delay.ms = ms) > 0) {
-        // Restart systick...
-//        SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
-//        SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
-        if(!(delay.callback = callback))
-            while(delay.ms);
+        if(!(delay.callback = callback)) {
+            while(delay.ms)
+                grbl.on_execute_delay(state_get());
+        }
     } else {
         delay.callback = NULL;
         if(callback)
@@ -490,7 +501,7 @@ static void stepperCyclesPerTick (uint32_t cycles_per_tick)
 
 inline static __attribute__((always_inline)) void stepperSetStepOutputs (axes_signals_t step_outbits_1)
 {
-	axes_signals_t step_outbits_2;
+    axes_signals_t step_outbits_2;
     step_outbits_2.mask = (step_outbits_1.mask & motors_2.mask) ^ settings.steppers.step_invert.mask;
 
 #if STEP_OUTMODE == GPIO_BITBAND
@@ -680,13 +691,13 @@ inline static __attribute__((always_inline)) void stepperSetDirOutputs (axes_sig
 #elif DIRECTION_OUTMODE == GPIO_MAP
     DIRECTION_PORT->ODR = (DIRECTION_PORT->ODR & ~DIRECTION_MASK) | dir_outmap[dir_outbits.value];
   #ifdef X2_DIRECTION_PIN
-    DIGITAL_OUT(X2_DIRECTION_PORT, X2_DIRECTION_PIN, (dir_outbits.x ^ settings.steppers.dir_invert.x) ^ settings.steppers.ganged_dir_invert.mask.x;
+    DIGITAL_OUT(X2_DIRECTION_PORT, X2_DIRECTION_PIN, (dir_outbits.x ^ settings.steppers.dir_invert.x) ^ settings.steppers.ganged_dir_invert.x;
   #endif
   #ifdef Y2_DIRECTION_PIN
-    DIGITAL_OUT(Y2_DIRECTION_PORT, Y2_DIRECTION_PIN, (dir_outbits.y ^ settings.steppers.dir_invert.y) ^ settings.steppers.ganged_dir_invert.mask.y);
+    DIGITAL_OUT(Y2_DIRECTION_PORT, Y2_DIRECTION_PIN, (dir_outbits.y ^ settings.steppers.dir_invert.y) ^ settings.steppers.ganged_dir_invert.y);
   #endif
   #ifdef Z2_DIRECTION_PIN
-    DIGITAL_OUT(Z2_DIRECTION_PORT, Z2_DIRECTION_PIN, (dir_outbits.z ^ settings.steppers.dir_invert.z) ^ settings.steppers.ganged_dir_invert.mask.z;
+    DIGITAL_OUT(Z2_DIRECTION_PORT, Z2_DIRECTION_PIN, (dir_outbits.z ^ settings.steppers.dir_invert.z) ^ settings.steppers.ganged_dir_invert.z;
   #endif
 #else // DIRECTION_OUTMODE = SHIFTx
  #ifdef GANGING_ENABLED
@@ -1185,6 +1196,8 @@ static void spindlePulseOn (uint_fast16_t pulse_length)
 
 #endif
 
+#endif // VFD_SPINDLE != 1
+
 #if SPINDLE_SYNC_ENABLE
 
 static spindle_data_t *spindleGetData (spindle_data_request_t request)
@@ -1271,8 +1284,6 @@ static void spindleDataReset (void)
 
 // end spindle code
 
-#endif // VFD_SPINDLE != 1
-
 // Start/stop coolant (and mist if enabled)
 static void coolantSetState (coolant_state_t mode)
 {
@@ -1337,6 +1348,21 @@ static uint_fast16_t valueSetAtomic (volatile uint_fast16_t *ptr, uint_fast16_t 
     __enable_irq();
     return prev;
 }
+
+#if MPG_MODE == 1
+
+static void mpg_select (sys_state_t state)
+{
+    stream_mpg_enable(DIGITAL_IN(MPG_MODE_PORT, MPG_MODE_PIN) == 0);
+}
+
+static void mpg_enable (sys_state_t state)
+{
+    if(sys.mpg_mode != (DIGITAL_IN(MPG_MODE_PORT, MPG_MODE_PIN) == 0))
+        stream_mpg_enable(true);
+}
+
+#endif
 
 static uint32_t getElapsedTicks (void)
 {
@@ -1575,6 +1601,7 @@ void settings_changed (settings_t *settings)
                     break;
 
                 case Input_ModeSelect:
+                    pullup = true;
                     input->irq_mode = IRQ_Mode_Change;
                     break;
 
@@ -1910,7 +1937,10 @@ static bool driver_setup (settings_t *settings)
     IOInitDone = settings->version == 21;
 
     hal.settings_changed(settings);
-    hal.spindle.set_state((spindle_state_t){0}, 0.0f);
+
+    if(hal.spindle.set_state)
+        hal.spindle.set_state((spindle_state_t){0}, 0.0f);
+
     hal.coolant.set_state((coolant_state_t){0});
 
 #if PPI_ENABLE
@@ -1937,6 +1967,23 @@ bool driver_init (void)
     __enable_irq();
 #endif
 
+#if MPG_MODE == 1
+
+    // Drive MPG mode input pin low until setup complete
+
+    GPIO_InitTypeDef GPIO_Init = {
+        .Speed = GPIO_SPEED_FREQ_HIGH,
+        .Mode = GPIO_MODE_OUTPUT_PP,
+        .Pin = 1 << MPG_MODE_PIN,
+        .Mode = GPIO_MODE_OUTPUT_PP
+    };
+
+    HAL_GPIO_Init(MPG_MODE_PORT, &GPIO_Init);
+
+    DIGITAL_OUT(MPG_MODE_PORT, MPG_MODE_PIN, 1);
+
+#endif
+
 #ifdef STM32F446xx
     hal.info = "STM32F446";
 #elif defined(STM32F411xE)
@@ -1946,7 +1993,7 @@ bool driver_init (void)
 #else
     hal.info = "STM32F401CC";
 #endif
-    hal.driver_version = "211225";
+    hal.driver_version = "220111";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -2019,7 +2066,7 @@ bool driver_init (void)
     stream_connect(serialInit(BAUD_RATE));
 #endif
 
-#ifdef I2C_PORT
+#if I2C_ENABLE
     i2c_init();
 #endif
 
@@ -2072,10 +2119,6 @@ bool driver_init (void)
     hal.driver_cap.probe_pull_up = On;
 #endif
 
-//Can I add stuff here so that the ioports get mapped to I2C functions?
-
-#ifdef HAS_IOPORTS
-
     uint32_t i;
     input_signal_t *input;
     static pin_group_pins_t aux_inputs = {0}, aux_outputs = {0};
@@ -2085,10 +2128,10 @@ bool driver_init (void)
         if(input->group == PinGroup_AuxInput) {
             if(aux_inputs.pins.inputs == NULL)
                 aux_inputs.pins.inputs = input;
+            input->id = (pin_function_t)(Input_Aux0 + aux_inputs.n_pins++);
             input->bit = 1 << input->pin;
             input->cap.pull_mode = PullMode_UpDown;
             input->cap.irq_mode = (DRIVER_IRQMASK & input->bit) ? IRQ_Mode_None : IRQ_Mode_Edges;
-            aux_inputs.n_pins++;
         }
     }
 
@@ -2098,12 +2141,12 @@ bool driver_init (void)
         if(output->group == PinGroup_AuxOutput) {
             if(aux_outputs.pins.outputs == NULL)
                 aux_outputs.pins.outputs = output;
-            aux_outputs.n_pins++;
+            output->id = (pin_function_t)(Output_Aux0 + aux_outputs.n_pins++);
         }
     }
 
+#ifdef HAS_IOPORTS
     ioports_init(&aux_inputs, &aux_outputs);
-
 #endif
 
 #ifdef HAS_BOARD_INIT
@@ -2113,6 +2156,20 @@ bool driver_init (void)
 #if defined(UART_INSTANCE) && USB_SERIAL_CDC == 0
     if(!stream_connect_instance(UART_INSTANCE, BAUD_RATE))
         while(true); // Cannot boot if no communication channel is available!
+#endif
+
+#if MPG_MODE == 1
+  #if KEYPAD_ENABLE == 2
+    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), false, keypad_enqueue_keycode)))
+        protocol_enqueue_rt_command(mpg_enable);
+  #else
+    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), false, NULL)))
+        protocol_enqueue_rt_command(mpg_enable);
+  #endif
+#elif MPG_MODE == 2
+    hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), false, keypad_enqueue_keycode);
+#elif KEYPAD_ENABLE == 2
+    stream_open_instance(KEYPAD_STREAM, 115200, keypad_enqueue_keycode);
 #endif
 
 #if ETHERNET_ENABLE
@@ -2390,7 +2447,7 @@ void EXTI4_IRQHandler(void)
 
 #endif
 
-#if (DRIVER_IRQMASK|AUXINPUT_MASK) & (0x03E0)
+#if (DRIVER_IRQMASK|AUXINPUT_MASK|MPG_MODE_BIT) & (0x03E0)
 
 void EXTI9_5_IRQHandler(void)
 {
@@ -2424,6 +2481,10 @@ void EXTI9_5_IRQHandler(void)
 #if I2C_STROBE_ENABLE && (I2C_STROBE_BIT & 0x03E0)
         if((ifg & I2C_STROBE_BIT) && i2c_strobe.callback)
             i2c_strobe.callback(0, DIGITAL_IN(I2C_STROBE_PORT, I2C_STROBE_PIN) == 0);
+#endif
+#if MPG_MODE_BIT && (MPG_MODE_BIT & 0x03E0)
+        if(ifg & MPG_MODE_BIT)
+            protocol_enqueue_rt_command(mpg_select);
 #endif
 #if AUXINPUT_MASK & 0x03E0
         if(ifg & aux_irq)
@@ -2479,6 +2540,10 @@ void EXTI15_10_IRQHandler(void)
 #if I2C_STROBE_ENABLE && (I2C_STROBE_BIT & 0xFC00)
         if((ifg & I2C_STROBE_BIT) && i2c_strobe.callback)
             i2c_strobe.callback(0, DIGITAL_IN(I2C_STROBE_PORT, I2C_STROBE_PIN) == 0);
+#endif
+#if MPG_MODE_PIN && (MPG_MODE_PIN & 0xFC00)
+        if(ifg & MPG_MODE_BIT)
+            protocol_enqueue_rt_command(mpg_select);
 #endif
 #if AUXINPUT_MASK & 0xFC00
         if(ifg & aux_irq)

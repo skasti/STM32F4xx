@@ -4,7 +4,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2019-2021 Terje Io
+  Copyright (c) 2019-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -67,6 +67,8 @@
 #define timercr2ois(c, n) TIM_CR2_OIS ## c ## n
 #define timerAF(t, f) timeraf(t, f)
 #define timeraf(t, f) GPIO_AF ## f ## _TIM ## t
+#define timerCLKENA(t) timercken(t)
+#define timercken(t) __HAL_RCC_TIM ## t ## _CLK_ENABLE
 
 // Configuration, do not change here
 
@@ -120,6 +122,8 @@
   #include "btt_skr_pro_v1_1_map.h"
 #elif defined(BOARD_BTT_SKR_20)
   #include "btt_skr_2.0_map.h"
+#elif defined(BOARD_BTT_SKR_20_DAC)
+  #include "btt_skr_2.0_dac_map.h"
 #elif defined(BOARD_PROTONEER_3XX)
   #include "protoneer_3.xx_map.h"
 #elif defined(BOARD_GENERIC_UNO)
@@ -280,17 +284,51 @@
 #include "spindle/modbus.h"
 #endif
 
-#if MODBUS_ENABLE || BLUETOOTH_ENABLE || TRINAMIC_UART_ENABLE
+#if MODBUS_ENABLE
+#define MODBUS_TEST 1
+#else
+#define MODBUS_TEST 0
+#endif
+
+#if TRINAMIC_UART_ENABLE && !defined(MOTOR_UARTX_PORT)
+#define TRINAMIC_TEST 1
+#else
+#define TRINAMIC_TEST 0
+#endif
+
+#if MPG_ENABLE
+#define MPG_TEST 1
+#else
+#define MPG_TEST 0
+#endif
+
+#if KEYPAD_ENABLE == 2 && MPG_ENABLE == 0
+#define KEYPAD_TEST 1
+#else
+#define KEYPAD_TEST 0
+#endif
+
+#if MODBUS_TEST + KEYPAD_TEST + MPG_TEST + TRINAMIC_TEST + BLUETOOTH_ENABLE > 1
+#error "Only one option that uses the serial port can be enabled!"
+#endif
+
+#if MODBUS_TEST || KEYPAD_TEST || MPG_TEST || TRINAMIC_TEST || BLUETOOTH_ENABLE
 #define SERIAL2_MOD
 #endif
-#define SERIAL2_MOD
+
+#undef MODBUS_TEST
+#undef KEYPAD_TEST
+#undef MPG_TEST
+#undef TRINAMIC_TEST
+
+#if MPG_MODE == 1 && !defined(MPG_MODE_PIN)
+#error "MPG_MODE_PIN must be defined!"
+#endif
+
 #if TRINAMIC_ENABLE
   #include "motors/trinamic.h"
   #ifndef TRINAMIC_MIXED_DRIVERS
     #define TRINAMIC_MIXED_DRIVERS 1
-  #endif
-  #if TRINAMIC_UART_ENABLE && MODBUS_ENABLE
-    #error "Cannot use Trinamic UART drivers with Modbus spindle!"
   #endif
 #endif
 
