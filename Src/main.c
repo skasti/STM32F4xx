@@ -56,7 +56,7 @@ static void SystemClock_Config(void)
 
 #ifdef STM32F446xx
 
-  #ifdef BOARD_MY_MACHINE
+  #ifdef IS_FLEXI_CNC
     __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;

@@ -32,8 +32,8 @@
   #define FMP_I2C 1
 #endif
 
-#define SERIAL2_MOD
-#define SERIAL3_MOD
+//#define SERIAL2_MOD
+//#define SERIAL3_MOD
 
 //#define EEPROM_ENABLE 1
 #define STM32F446xx 1
@@ -45,8 +45,13 @@
 #define I2C_STROBE_ENABLE 1
 #endif
 
-#if MODBUS_ENABLE
-#define MODBUS_SERIAL_PORT 3
+/*#if MODBUS_ENABLE
+#define MODBUS_SERIAL_PORT 1
+#endif*/
+
+#if MPG_MODE == 1
+#define MPG_MODE_PORT           GPIOA
+#define MPG_MODE_PIN            15
 #endif
 
 // Define step pulse output pins.
