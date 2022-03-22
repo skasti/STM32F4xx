@@ -215,6 +215,7 @@ static enqueue_realtime_command_ptr usbSetRtHandler (enqueue_realtime_command_pt
 const io_stream_t *usbInit (void)
 {
     static const io_stream_t stream = {
+        .instance = 0,
         .type = StreamType_Serial,
         .state.is_usb = On,
         .read = usbGetC,

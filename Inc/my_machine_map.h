@@ -45,9 +45,9 @@
 #define I2C_STROBE_ENABLE 1
 #endif
 
-/*#if MODBUS_ENABLE
+#if MODBUS_ENABLE
 #define MODBUS_SERIAL_PORT 1
-#endif*/
+#endif
 
 #if MPG_MODE == 1
 #define MPG_MODE_PORT           GPIOA

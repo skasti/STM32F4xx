@@ -699,7 +699,7 @@ const io_stream_t *serial2Init (uint32_t baud_rate)
         .Pull = GPIO_NOPULL,
         .Speed = GPIO_SPEED_FREQ_LOW,
         .Pin = GPIO_PIN_5|GPIO_PIN_10,
-        .Alternate = GPIO_AF7_USART2
+        .Alternate = GPIO_AF7_USART3
     };
     HAL_GPIO_Init(GPIOC, &GPIO_InitStructure);
 
