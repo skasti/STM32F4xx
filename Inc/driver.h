@@ -124,6 +124,8 @@
   #include "btt_skr_2.0_map.h"
 #elif defined(BOARD_BTT_SKR_20_DAC)
   #include "btt_skr_2.0_dac_map.h"
+#elif defined(BOARD_FYSETC_S6)
+  #include "fysetc_s6_map.h"
 #elif defined(BOARD_PROTONEER_3XX)
   #include "protoneer_3.xx_map.h"
 #elif defined(BOARD_GENERIC_UNO)
@@ -154,11 +156,13 @@
 #define STEPPER_TIMER               timer(STEPPER_TIMER_N)
 #define STEPPER_TIMER_IRQn          timerINT(STEPPER_TIMER_N)
 #define STEPPER_TIMER_IRQHandler    timerHANDLER(STEPPER_TIMER_N)
+#define STEPPER_TIMER_CLOCK_ENA     timerCLKENA(STEPPER_TIMER_N)
 
 #define PULSE_TIMER_N               4
 #define PULSE_TIMER                 timer(PULSE_TIMER_N)
 #define PULSE_TIMER_IRQn            timerINT(PULSE_TIMER_N)
 #define PULSE_TIMER_IRQHandler      timerHANDLER(PULSE_TIMER_N)
+#define PULSE_TIMER_CLOCK_ENA       timerCLKENA(PULSE_TIMER_N)
 
 #ifdef SPINDLE_PWM_PORT_BASE
 
@@ -195,6 +199,11 @@
     #define SPINDLE_PWM_TIMER_CH    1
     #define SPINDLE_PWM_TIMER_INV   0
     #define SPINDLE_PWM_TIMER_AF    2
+  #elif SPINDLE_PWM_PIN == 9 // PB9 - TIM11_CH1
+    #define SPINDLE_PWM_TIMER_N     11
+    #define SPINDLE_PWM_TIMER_CH    1
+    #define SPINDLE_PWM_TIMER_INV   0
+    #define SPINDLE_PWM_TIMER_AF    3
   #endif
 #endif
 
@@ -220,6 +229,7 @@
 
 #define SPINDLE_PWM_PORT            ((GPIO_TypeDef *)SPINDLE_PWM_PORT_BASE)
 #define SPINDLE_PWM_AF              timerAF(SPINDLE_PWM_TIMER_N, SPINDLE_PWM_TIMER_AF)
+#define SPINDLE_PWM_CLOCK_ENA       timerCLKENA(SPINDLE_PWM_TIMER_N)
 
 #endif // SPINDLE_PWM_PORT_BASE
 
@@ -235,6 +245,7 @@
 #define DEBOUNCE_TIMER              timer(DEBOUNCE_TIMER_N)
 #define DEBOUNCE_TIMER_IRQn         TIM1_BRK_TIM9_IRQn       // !
 #define DEBOUNCE_TIMER_IRQHandler   TIM1_BRK_TIM9_IRQHandler // !
+#define DEBOUNCE_TIMER_CLOCK_ENA    timerCLKENA(DEBOUNCE_TIMER_N)
 
 #if SPINDLE_SYNC_ENABLE
 
@@ -246,11 +257,13 @@
 #define RPM_COUNTER                 timer(RPM_COUNTER_N)
 #define RPM_COUNTER_IRQn            timerINT(RPM_COUNTER_N)
 #define RPM_COUNTER_IRQHandler      timerHANDLER(RPM_COUNTER_N)
+#define RPM_COUNTER_CLOCK_ENA       timerCLKENA(RPM_COUNTER_N)
 
 #define RPM_TIMER_N                 2
 #define RPM_TIMER                   timer(RPM_TIMER_N)
 #define RPM_TIMER_IRQn              timerINT(RPM_TIMER_N)
 #define RPM_TIMER_IRQHandler        timerHANDLER(RPM_TIMER_N)
+#define RPM_TIMER_CLOCK_ENA         timerCLKENA(RPM_TIMER_N)
 
 #elif PPI_ENABLE
 
@@ -262,6 +275,7 @@
 #define PPI_TIMER                   timer(PPI_TIMER_N)
 #define PPI_TIMER_IRQn              timerINT(PPI_TIMER_N)
 #define PPI_TIMER_IRQHandler        timerHANDLER(PPI_TIMER_N)
+#define PPI_TIMER_CLOCK_ENA         timerCLKENA(PPI_TIMER_N)
 
 #endif
 
