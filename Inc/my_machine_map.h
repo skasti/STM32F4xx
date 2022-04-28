@@ -32,21 +32,14 @@
   #define FMP_I2C 1
 #endif
 
-//#define SERIAL2_MOD
-//#define SERIAL3_MOD
-
 //#define EEPROM_ENABLE 1
 #define STM32F446xx 1
 //#define IOEXPAND_ENABLE 1
 #define HAS_IOPORTS 1
 //#define HAS_BOARD_INIT 1
 
-#if KEYPAD_ENABLE
-#define I2C_STROBE_ENABLE 1
-#endif
-
 #if MODBUS_ENABLE
-#define MODBUS_SERIAL_PORT 1
+#define MODBUS_SERIAL_PORT 2
 #endif
 
 #if MPG_MODE == 1
@@ -75,6 +68,12 @@
 //#define DIRECTION_PINMODE       PINMODE_OD // Uncomment for open drain outputs
 
 // Define stepper driver enable/disable output pin.
+#define X_ENABLE_PORT               GPIOA
+#define X_ENABLE_PIN                14
+#define Y_ENABLE_PORT               GPIOA
+#define Y_ENABLE_PIN                14
+#define Z_ENABLE_PORT               GPIOA
+#define Z_ENABLE_PIN                13
 #define STEPPERS_ENABLE_PORT       GPIOA
 #define STEPPERS_ENABLE_PIN        14
 #define STEPPERS_ENABLE_OUTMODE    GPIO_BITBAND
@@ -89,29 +88,29 @@
 #define LIMIT_INMODE            GPIO_BITBAND
 
 // Define ganged axis or A axis step pulse and step direction output pins.
-#if N_ABC_MOTORS == 1
+#if N_ABC_MOTORS > 0
 #define M3_AVAILABLE
 #define M3_STEP_PORT            GPIOB
 #define M3_STEP_PIN             14
 #define M3_DIRECTION_PORT       GPIOB
 #define M3_DIRECTION_PIN        15
-#if N_AUTO_SQUARED
 #define M3_LIMIT_PORT           GPIOB
 #define M3_LIMIT_PIN            6
-#endif
+#define M3_ENABLE_PORT          GPIOA
+#define M3_ENABLE_PIN           14
 #endif
 
 // Define ganged axis or A axis step pulse and step direction output pins.
 #if N_ABC_MOTORS == 2
-#define M34AVAILABLE
+#define M4_AVAILABLE
 #define M4_STEP_PORT            GPIOC
 #define M4_STEP_PIN             8
 #define M4_DIRECTION_PORT       GPIOC
 #define M4_DIRECTION_PIN        9
-#if N_AUTO_SQUARED > 1
 #define M4_LIMIT_PORT           GPIOC
 #define M4_LIMIT_PIN            14
-#endif
+#define M4_ENABLE_PORT          GPIOA
+#define M4_ENABLE_PIN           14
 #endif
 
 // Define spindle enable and spindle direction output pins.

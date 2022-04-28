@@ -73,7 +73,7 @@ static enqueue_realtime_command_ptr enqueue_realtime_command2 = protocol_enqueue
 static io_stream_properties_t serial[] = {
     {
       .type = StreamType_Serial,
-      .instance = 0,
+      .instance = 1,
       .flags.claimable = On,
       .flags.claimed = Off,
       .flags.connected = On,
@@ -84,7 +84,7 @@ static io_stream_properties_t serial[] = {
 #ifdef SERIAL2_MOD
     {
       .type = StreamType_Serial,
-      .instance = 1,
+      .instance = 2,
       .flags.claimable = On,
       .flags.claimed = Off,
       .flags.connected = On,

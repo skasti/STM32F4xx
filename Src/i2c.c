@@ -155,6 +155,7 @@ void i2c_init (void)
 #endif
 
 #if FMP_I2C
+
     GPIO_InitTypeDef GPIO_InitStruct = {
         .Pin = (1 << I2C1_SCL_PIN)|(1 << I2C1_SDA_PIN),
         .Mode = GPIO_MODE_AF_OD,
@@ -165,11 +166,14 @@ void i2c_init (void)
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
     __HAL_RCC_FMPI2C1_CLK_ENABLE();
+    HAL_FMPI2CEx_ConfigAnalogFilter(&i2c_port, FMPI2C_ANALOGFILTER_ENABLE);
 
     HAL_FMPI2C_Init(&i2c_port);
+    __HAL_FMPI2C_ENABLE(&i2c_port);
 
+        /* FMPI2C1 interrupt Init */
+    HAL_NVIC_SetPriority(FMPI2C1_EV_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(FMPI2C1_EV_IRQn);
-    HAL_NVIC_EnableIRQ(FMPI2C1_ER_IRQn);
 
     static const periph_pin_t scl = {
         .function = Output_SCK,
@@ -229,9 +233,8 @@ void I2C_Send (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes, bool block)
 {
 	//wait for bus to be ready
 	while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
-	//need to replace this Pico function call
 
-    HAL_FMPI2C_Master_Transmit_DMA(&i2c_port,  i2cAddr, buf, bytes);
+    HAL_FMPI2C_Master_Transmit_IT(&i2c_port,  i2cAddr<<1, buf, bytes);
 
     if (block)
     	while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
