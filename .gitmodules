@@ -1,12 +1,12 @@
 [submodule "grbl"]
 	path = grbl
-	url = https://github.com/grblHAL/core
+	url = https://github.com/Expatria-Technologies/core/
 [submodule "eeprom"]
 	path = eeprom
 	url = https://github.com/grblHAL/Plugin_EEPROM
 [submodule "keypad"]
 	path = keypad
-	url = https://github.com/grblHAL/Plugin_I2C_keypad
+	url = https://github.com/Expatria-Technologies/Plugin_I2C_keypad
 [submodule "odometer"]
 	path = odometer
 	url = https://github.com/grblHAL/Plugin_odometer
@@ -15,7 +15,7 @@
 	url = https://github.com/grblHAL/Plugin_SD_card
 [submodule "spindle"]
 	path = spindle
-	url = https://github.com/grblHAL/Plugins_spindle
+	url = https://github.com/Expatria-Technologies/Plugins_spindle/
 [submodule "laser"]
 	path = laser
 	url = https://github.com/grblHAL/Plugins_laser
@@ -28,3 +28,6 @@
 [submodule "bluetooth"]
 	path = bluetooth
 	url = https://github.com/grblHAL/Plugins_Bluetooth
+[submodule "rgb"]
+	path = rgb
+	url = https://github.com/Expatria-Technologies/grblhal-rgb-plugin

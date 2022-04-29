@@ -34,7 +34,7 @@
 //#define BOARD_BTT_SKR_20      // F407 based 3D Printer board
 //#define BOARD_BTT_SKR_20_DAC  // F407 based 3D Printer board, uses analog output (DAC) for spindle speed control
 //#define BOARD_FYSETC_S6      // F446 based 3D Printer board
-//#define BOARD_MY_MACHINE      // Add my_machine_map.h before enabling this!
+#define BOARD_MY_MACHINE      // Add my_machine_map.h before enabling this!
 
 // WARNING: BOARD_BTT_SKR_20 may fry your Trinamic drivers due to bad hardware design.
 //          The risk goes away if Q1 (HY1904C2) is shorted between source (S) and drain (D).
