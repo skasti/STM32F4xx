@@ -7,6 +7,7 @@
 [submodule "keypad"]
 	path = keypad
 	url = https://github.com/Expatria-Technologies/Plugin_I2C_keypad
+	branch = Interactive_Jog
 [submodule "odometer"]
 	path = odometer
 	url = https://github.com/grblHAL/Plugin_odometer
@@ -16,6 +17,7 @@
 [submodule "spindle"]
 	path = spindle
 	url = https://github.com/Expatria-Technologies/Plugins_spindle/
+	branch = vfd_support
 [submodule "laser"]
 	path = laser
 	url = https://github.com/grblHAL/Plugins_laser
