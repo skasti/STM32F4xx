@@ -1241,8 +1241,6 @@ bool spindleConfig (void)
     return true;
 }
 
-#endif // PWM_SPINDLE
-
 #if SPINDLE_SYNC_ENABLE
 
 static spindle_data_t *spindleGetData (spindle_data_request_t request)
