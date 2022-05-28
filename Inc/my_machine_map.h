@@ -47,11 +47,13 @@
 #define MPG_MODE_PIN            15
 #endif
 
+//********on first revision of this board Y step/dir was flipped.  Use below config?
+
 // Define step pulse output pins.
 #define X_STEP_PORT             GPIOC
 #define X_STEP_PIN              2
 #define Y_STEP_PORT				      GPIOC
-#define Y_STEP_PIN              15
+#define Y_STEP_PIN              1
 #define Z_STEP_PORT				      GPIOB
 #define Z_STEP_PIN              13
 #define STEP_OUTMODE            GPIO_BITBAND
@@ -61,7 +63,7 @@
 #define X_DIRECTION_PORT        GPIOC
 #define X_DIRECTION_PIN         0
 #define Y_DIRECTION_PORT        GPIOC
-#define Y_DIRECTION_PIN         1
+#define Y_DIRECTION_PIN         15
 #define Z_DIRECTION_PORT        GPIOA
 #define Z_DIRECTION_PIN         4
 #define DIRECTION_OUTMODE       GPIO_BITBAND
