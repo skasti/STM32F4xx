@@ -136,6 +136,8 @@
   #include "st_morpho_dac_map.h"
 #elif defined(BOARD_MINI_BLACKPILL)
   #include "mini_blackpill_map.h"
+#elif defined(BOARD_FLEXI_HAL)
+  #include "flexi_hal_map.h"  
 #elif defined(BOARD_MY_MACHINE)
   #include "my_machine_map.h"
 #else // default board

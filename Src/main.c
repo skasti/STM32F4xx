@@ -258,7 +258,7 @@ static void SystemClock_Config(void)
 
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_CLK48;
 
-  #ifdef BOARD_MY_MACHINE
+  #if defined(BOARD_MY_MACHINE) || defined(BOARD_FLEXI_HAL)
   
     PeriphClkInitStruct.PLLSAI.PLLSAIM = 25;
     PeriphClkInitStruct.PLLSAI.PLLSAIN = 192;

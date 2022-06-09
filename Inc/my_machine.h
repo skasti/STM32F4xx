@@ -34,7 +34,8 @@
 //#define BOARD_BTT_SKR_20      // F407 based 3D Printer board
 //#define BOARD_BTT_SKR_20_DAC  // F407 based 3D Printer board, uses analog output (DAC) for spindle speed control
 //#define BOARD_FYSETC_S6      // F446 based 3D Printer board
-#define BOARD_MY_MACHINE      // Add my_machine_map.h before enabling this!
+#define BOARD_FLEXI_HAL      // F446 CNC board
+//#define BOARD_MY_MACHINE      // Add my_machine_map.h before enabling this!
 
 // WARNING: BOARD_BTT_SKR_20 may fry your Trinamic drivers due to bad hardware design.
 //          The risk goes away if Q1 (HY1904C2) is shorted between source (S) and drain (D).
@@ -60,7 +61,7 @@
 #define VFD_ENABLE           -1 // Set to 1 or 2 for Huanyang VFD spindle. More here https://github.com/grblHAL/Plugins_spindle
 #define MODBUS_ENABLE        1 // Set to 1 for auto direction, 2 for direction signal on auxillary output pin.
 //#define SDCARD_ENABLE        2 // Run gcode programs from SD card.
-#define MPG_ENABLE           1 // Enable MPG interface. Requires serial port and one handshake pin unless
+//#define MPG_ENABLE           1 // Enable MPG interface. Requires serial port and one handshake pin unless
                                  // KEYPAD_ENABLE is set to 2 when mode switching is done by the CMD_MPG_MODE_TOGGLE (0x8B)
                                  // command character. Set both MPG_ENABLE and KEYPAD_ENABLE to 2 to use a handshake pin anyway.
 #define KEYPAD_ENABLE        1 // Set to 1 for I2C keypad, 2 for other input such as serial data. If KEYPAD_ENABLE is set to 2
