@@ -1948,13 +1948,6 @@ static bool driver_setup (settings_t *settings)
 
 bool driver_init (void)
 {
-#ifdef HAS_BOOTLOADER
-    extern uint8_t _FLASH_VectorTable;
-    __disable_irq();
-    SCB->VTOR = (uint32_t)&_FLASH_VectorTable;
-    __DSB();
-    __enable_irq();
-#endif
 
 #if MPG_MODE == 1
 
