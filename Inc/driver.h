@@ -31,8 +31,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define ESTOP_ENABLE 0
-
 #ifndef OVERRIDE_MY_MACHINE
 #include "my_machine.h"
 #endif
@@ -69,6 +67,12 @@
 #define timeraf(t, f) GPIO_AF ## f ## _TIM ## t
 #define timerCLKENA(t) timercken(t)
 #define timercken(t) __HAL_RCC_TIM ## t ## _CLK_ENABLE
+#define usart(t) usartN(t)
+#define usartN(t) USART ## t
+#define usartINT(t) usartint(t)
+#define usartint(t) USART ## t ## _IRQn
+#define usartHANDLER(t) usarthandler(t)
+#define usarthandler(t) USART ## t ## _IRQHandler
 
 // Configuration, do not change here
 
@@ -254,14 +258,17 @@
 #if SPINDLE_PWM_TIMER_N == 2 || SPINDLE_PWM_TIMER_N == 3
 #error Timer conflict: spindle sync and spindle PWM!
 #endif
-
+#ifndef RPM_COUNTER_N
 #define RPM_COUNTER_N               3
+#endif
 #define RPM_COUNTER                 timer(RPM_COUNTER_N)
 #define RPM_COUNTER_IRQn            timerINT(RPM_COUNTER_N)
 #define RPM_COUNTER_IRQHandler      timerHANDLER(RPM_COUNTER_N)
 #define RPM_COUNTER_CLOCK_ENA       timerCLKENA(RPM_COUNTER_N)
 
+#ifndef RPM_TIMER_N
 #define RPM_TIMER_N                 2
+#endif
 #define RPM_TIMER                   timer(RPM_TIMER_N)
 #define RPM_TIMER_IRQn              timerINT(RPM_TIMER_N)
 #define RPM_TIMER_IRQHandler        timerHANDLER(RPM_TIMER_N)
@@ -335,7 +342,11 @@
 #endif
 
 #if MODBUS_TEST || KEYPAD_TEST || MPG_TEST || TRINAMIC_TEST || BLUETOOTH_ENABLE
-#define SERIAL2_MOD
+#if IS_NUCLEO_DEVKIT
+#define SERIAL2_MOD 1
+#else
+#define SERIAL2_MOD 2
+#endif
 #endif
 
 #undef MODBUS_TEST
