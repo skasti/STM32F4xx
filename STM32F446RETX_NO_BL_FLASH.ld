@@ -37,7 +37,8 @@ _Min_Stack_Size = 0x400 ;	/* required amount of stack */
 MEMORY
 {
   RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 128K
-  FLASH    (rx)    : ORIGIN = 0x8000000,   LENGTH = 512K - 128K
+  BOOT_FLASH    (rx)    : ORIGIN = 0x8000000,   LENGTH = 64K
+  FLASH    (rx)    : ORIGIN = 0x8010000,   LENGTH = 512K - 128K - 64K
   EEPROM_EMUL(xrw)      : ORIGIN = 0x8060000,   LENGTH = 128K
 }
 
