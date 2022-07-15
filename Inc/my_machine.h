@@ -51,17 +51,15 @@
 // Configuration
 // Uncomment to enable.
 
-#define IS_FLEXI_CNC 1
-
 #if !IS_NUCLEO_DEVKIT // The Nucleo boards has an off-chip UART to USB interface.
 #define USB_SERIAL_CDC       1 // Serial communication via native USB.
 #endif
 //#define SAFETY_DOOR_ENABLE   1 // Enable safety door input.
 //#define BLUETOOTH_ENABLE     1 // Set to 1 for HC-05 module. Requires and claims one auxillary input pin.
 #define VFD_ENABLE           -1 // Set to 1 or 2 for Huanyang VFD spindle. More here https://github.com/grblHAL/Plugins_spindle
-#define MODBUS_ENABLE        2 // Set to 1 for auto direction, 2 for direction signal on auxillary output pin.
+#define MODBUS_ENABLE        1 // Set to 1 for auto direction, 2 for direction signal on auxillary output pin.
 //#define SDCARD_ENABLE        2 // Run gcode programs from SD card.
-//#define MPG_ENABLE           1 // Enable MPG interface. Requires serial port and one handshake pin unless
+#define MPG_ENABLE           1 // Enable MPG interface. Requires serial port and one handshake pin unless
                                  // KEYPAD_ENABLE is set to 2 when mode switching is done by the CMD_MPG_MODE_TOGGLE (0x8B)
                                  // command character. Set both MPG_ENABLE and KEYPAD_ENABLE to 2 to use a handshake pin anyway.
 #define KEYPAD_ENABLE        1 // Set to 1 for I2C keypad, 2 for other input such as serial data. If KEYPAD_ENABLE is set to 2

@@ -19,6 +19,8 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#define IS_FLEXI_CNC 1
+
 #if N_ABC_MOTORS > 2
 #error "Axis configuration is not supported!"
 #endif
