@@ -42,17 +42,14 @@
 #endif
 
 #ifdef FMP_I2C
-//#define I2Cport(p) I2CportI(p)
-//#define I2CportI(p) FMPI2C1
-//#undef I2C_PORT
-//#define I2C_PORT FMPI2C1
+
 #else
 #define I2Cport(p) I2CportI(p)
 #define I2CportI(p) I2C ## p
 #endif
 
 #ifdef FMP_I2C
-//#define I2CPORT I2Cport(FMPI2C1)
+
 #else
 #define I2CPORT I2Cport(I2C_PORT)
 #endif
@@ -61,6 +58,7 @@
 static FMPI2C_HandleTypeDef i2c_port = {
     .Instance = FMPI2C1,
     .Init.Timing = 0xC0000E12,
+    //.Init.Timing =0x00401650,
     //.Init.DutyCycle = I2C_DUTYCYCLE_2,
     .Init.OwnAddress1 = 0,
     .Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT,
@@ -253,47 +251,20 @@ void I2C_Send (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes, bool block)
 }
 #endif
 
-#ifdef FMP_I2C
-uint8_t *I2C_ReadRegister (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes, bool block)
-{
-
-	while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
-    HAL_FMPI2C_Mem_Read(&i2c_port, i2cAddr, buf[0], I2C_MEMADD_SIZE_8BIT, buf, 1, 100);
-
-    //if (block)
-    //	while (HAL_I2C_GetState(&i2c_port) != HAL_I2C_STATE_READY);
-
-    return buf;
-}
-#else
-uint8_t *I2C_ReadRegister (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes, bool block)
-{
-
-	while (HAL_I2C_GetState(&i2c_port) != HAL_I2C_STATE_READY);
-    HAL_I2C_Mem_Read(&i2c_port, i2cAddr, buf[0], I2C_MEMADD_SIZE_8BIT, buf, 1, 100);
-
-    //if (block)
-    //	while (HAL_I2C_GetState(&i2c_port) != HAL_I2C_STATE_READY);
-
-    return buf;
-}
-#endif
-
 #if EEPROM_ENABLE
 #ifdef FMP_I2C
 nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
 {
     while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
 
-//    while (HAL_I2C_IsDeviceReady(&i2c_port, (uint16_t)(0xA0), 3, 100) != HAL_OK);
     HAL_StatusTypeDef ret;
-
+    
     if(read)
-        ret = HAL_FMPI2C_Mem_Read(&i2c_port, i2c->address << 1, i2c->word_addr, i2c->word_addr_bytes == 2 ? I2C_MEMADD_SIZE_16BIT : I2C_MEMADD_SIZE_8BIT, i2c->data, i2c->count, 100);
+        ret = HAL_FMPI2C_Mem_Read(&i2c_port, i2c->address << 1, i2c->word_addr, i2c->word_addr_bytes, i2c->data, i2c->count, 100);
     else {
-        ret = HAL_FMPI2C_Mem_Write(&i2c_port, i2c->address << 1, i2c->word_addr, i2c->word_addr_bytes == 2 ? I2C_MEMADD_SIZE_16BIT : I2C_MEMADD_SIZE_8BIT, i2c->data, i2c->count, 100);
+        ret = HAL_FMPI2C_Mem_Write(&i2c_port, i2c->address << 1, i2c->word_addr, i2c->word_addr_bytes, i2c->data, i2c->count, 100);
 #if !EEPROM_IS_FRAM
-        hal.delay_ms(5, NULL);
+        hal.delay_ms(6, NULL);
 #endif
     }
     i2c->data += i2c->count;
@@ -305,7 +276,6 @@ nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
 {
     while (HAL_I2C_GetState(&i2c_port) != HAL_I2C_STATE_READY);
 
-//    while (HAL_I2C_IsDeviceReady(&i2c_port, (uint16_t)(0xA0), 3, 100) != HAL_OK);
     HAL_StatusTypeDef ret;
 
     if(read)

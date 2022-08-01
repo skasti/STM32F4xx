@@ -75,7 +75,10 @@ static void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLN = 216;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 8;
-  RCC_OscInitStruct.PLL.PLLR = 2; 
+  RCC_OscInitStruct.PLL.PLLR = 2;
+
+  #define APB1CLKDIV RCC_HCLK_DIV4
+  #define APB2CLKDIV RCC_HCLK_DIV2
 
   if (HAL_PWREx_EnableOverDrive() != HAL_OK)
   {
