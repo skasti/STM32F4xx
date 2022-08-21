@@ -57,8 +57,9 @@
 #ifdef FMP_I2C
 static FMPI2C_HandleTypeDef i2c_port = {
     .Instance = FMPI2C1,
-    .Init.Timing = 0xC0000E12,
-    //.Init.Timing =0x00401650,
+    //.Init.Timing = 0xC0000E12, //400 KHz
+    .Init.Timing = 0x0020081B, //1000 KHz
+    //.Init.Timing =0x00401650, //200 KHz
     //.Init.DutyCycle = I2C_DUTYCYCLE_2,
     .Init.OwnAddress1 = 0,
     .Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT,
@@ -298,15 +299,14 @@ nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
 static uint8_t keycode = 0;
 static keycode_callback_ptr keypad_callback = NULL;
 
-#ifdef FMP_I2C
-void I2C_GetKeycode (uint32_t i2cAddr, keycode_callback_ptr callback)
+void I2C_PendantRead (uint32_t i2cAddr, uint8_t memaddress, uint8_t size, uint8_t * data)
 {
-    keycode = 0;
-    keypad_callback = callback;
-
-    HAL_FMPI2C_Master_Receive_IT(&i2c_port, KEYPAD_I2CADDR << 1, &keycode, 1);
+    while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
+    
+    HAL_FMPI2C_Mem_Read(&i2c_port, i2cAddr << 1, memaddress, 1, data, size, 100);
 }
 
+#ifdef FMP_I2C
 void HAL_FMPI2C_MasterRxCpltCallback(FMPI2C_HandleTypeDef *hi2c)
 {
     if(keypad_callback && keycode != 0) {
@@ -315,14 +315,6 @@ void HAL_FMPI2C_MasterRxCpltCallback(FMPI2C_HandleTypeDef *hi2c)
     }
 }
 #else
-void I2C_GetKeycode (uint32_t i2cAddr, keycode_callback_ptr callback)
-{
-    keycode = 0;
-    keypad_callback = callback;
-
-    HAL_I2C_Master_Receive_IT(&i2c_port, KEYPAD_I2CADDR << 1, &keycode, 1);
-}
-
 void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
 {
     if(keypad_callback && keycode != 0) {
@@ -331,6 +323,18 @@ void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
     }
 }
 #endif
+
+void I2C_GetKeycode (uint32_t i2cAddr, keycode_callback_ptr callback)
+{
+    keycode = 0;
+    keypad_callback = callback;
+
+    #ifdef FMP_I2C
+    HAL_FMPI2C_Master_Receive_IT(&i2c_port, i2cAddr << 1, &keycode, 1);
+    #else
+     HAL_I2C_Master_Receive_IT(&i2c_port, KEYPAD_I2CADDR << 1, &keycode, 1);
+    #endif
+}
 
 #endif // KEYPAD_ENABLE == 1
 
