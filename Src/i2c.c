@@ -24,16 +24,15 @@
 #include "i2c.h"
 #include "grbl/hal.h"
 
+#if !defined(BOARD_FLEXI_HAL)
+
 #if KEYPAD_ENABLE == 1
 #include "keypad/keypad.h"
 #endif
 
 #if I2C_ENABLE
 
-#ifdef FMP_I2C
-  #define I2C1_SCL_PIN 6
-  #define I2C1_SDA_PIN 7
-#elif I2C1_ALT_PINMAP
+#ifdef I2C1_ALT_PINMAP
   #define I2C1_SCL_PIN 6
   #define I2C1_SDA_PIN 7
 #else
@@ -41,35 +40,11 @@
   #define I2C1_SDA_PIN 9
 #endif
 
-#ifdef FMP_I2C
-
-#else
 #define I2Cport(p) I2CportI(p)
 #define I2CportI(p) I2C ## p
-#endif
 
-#ifdef FMP_I2C
-
-#else
 #define I2CPORT I2Cport(I2C_PORT)
-#endif
 
-#ifdef FMP_I2C
-static FMPI2C_HandleTypeDef i2c_port = {
-    .Instance = FMPI2C1,
-    //.Init.Timing = 0xC0000E12, //100 KHz
-    //.Init.Timing = 0x0020081B, //1000 KHz
-    .Init.Timing =0x00401650, //400 KHz
-    //.Init.DutyCycle = I2C_DUTYCYCLE_2,
-    .Init.OwnAddress1 = 0,
-    .Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT,
-    .Init.DualAddressMode = I2C_DUALADDRESS_DISABLE,
-    .Init.OwnAddress2 = 0,
-    .Init.OwnAddress2Masks = FMPI2C_OA2_NOMASK,
-    .Init.GeneralCallMode = I2C_GENERALCALL_DISABLE,
-    .Init.NoStretchMode = I2C_NOSTRETCH_DISABLE
-};
-#else
 static I2C_HandleTypeDef i2c_port = {
     .Instance = I2CPORT,
     .Init.ClockSpeed = 100000,
@@ -81,7 +56,6 @@ static I2C_HandleTypeDef i2c_port = {
     .Init.GeneralCallMode = I2C_GENERALCALL_DISABLE,
     .Init.NoStretchMode = I2C_NOSTRETCH_DISABLE
 };
-#endif
 
 void i2c_init (void)
 {
@@ -153,44 +127,6 @@ void i2c_init (void)
     };
 #endif
 
-#if FMP_I2C
-
-    GPIO_InitTypeDef GPIO_InitStruct = {
-        .Pin = (1 << I2C1_SCL_PIN)|(1 << I2C1_SDA_PIN),
-        .Mode = GPIO_MODE_AF_OD,
-        .Pull = GPIO_PULLUP,
-        .Speed = GPIO_SPEED_FREQ_VERY_HIGH,
-        .Alternate = GPIO_AF4_FMPI2C1
-    };
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-    __HAL_RCC_FMPI2C1_CLK_ENABLE();
-    HAL_FMPI2CEx_ConfigAnalogFilter(&i2c_port, FMPI2C_ANALOGFILTER_ENABLE);
-
-    HAL_FMPI2C_Init(&i2c_port);
-    __HAL_FMPI2C_ENABLE(&i2c_port);
-
-        /* FMPI2C1 interrupt Init */
-    HAL_NVIC_SetPriority(FMPI2C1_EV_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(FMPI2C1_EV_IRQn);
-
-    static const periph_pin_t scl = {
-        .function = Output_SCK,
-        .group = PinGroup_I2C,
-        .port = GPIOC,
-        .pin = 6,
-        .mode = { .mask = PINMODE_OD }
-    };
-
-    static const periph_pin_t sda = {
-        .function = Bidirectional_SDA,
-        .group = PinGroup_I2C,
-        .port = GPIOC,
-        .pin = 7,
-        .mode = { .mask = PINMODE_OD }
-    };
-#endif
-
     hal.periph_port.register_pin(&scl);
     hal.periph_port.register_pin(&sda);
 }
@@ -205,16 +141,6 @@ void I2C1_ER_IRQHandler(void)
 {
   HAL_I2C_ER_IRQHandler(&i2c_port);
 }
-#elif FMP_I2C
-void FMPI2C1_EV_IRQHandler(void)
-{
-  HAL_FMPI2C_EV_IRQHandler(&i2c_port);
-}
-
-void FMPI2C1_ER_IRQHandler(void)
-{
-  HAL_FMPI2C_ER_IRQHandler(&i2c_port);
-}
 #else
 void I2C2_EV_IRQHandler(void)
 {
@@ -227,56 +153,13 @@ void I2C2_ER_IRQHandler(void)
 }
 #endif
 
-#ifdef FMP_I2C
-void I2C_Send (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes, bool block)
-{
-	//wait for bus to be ready
-	while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
-
-    HAL_FMPI2C_Master_Transmit_IT(&i2c_port,  i2cAddr<<1, buf, bytes);
-
-    if (block)
-    	while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
-}
-#else
-void I2C_Send (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes, bool block)
-{
-	//wait for bus to be ready
-	while (HAL_I2C_GetState(&i2c_port) != HAL_I2C_STATE_READY);
-	//need to replace this Pico function call
-
-    HAL_I2C_Master_Transmit_DMA(&i2c_port,  i2cAddr, buf, bytes);
-
-    if (block)
-    	while (HAL_I2C_GetState(&i2c_port) != HAL_I2C_STATE_READY);
-}
-#endif
-
 #if EEPROM_ENABLE
-#ifdef FMP_I2C
-nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
-{
-    while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
 
-    HAL_StatusTypeDef ret;
-    
-    if(read)
-        ret = HAL_FMPI2C_Mem_Read(&i2c_port, i2c->address << 1, i2c->word_addr, i2c->word_addr_bytes, i2c->data, i2c->count, 100);
-    else {
-        ret = HAL_FMPI2C_Mem_Write(&i2c_port, i2c->address << 1, i2c->word_addr, i2c->word_addr_bytes, i2c->data, i2c->count, 100);
-#if !EEPROM_IS_FRAM
-        hal.delay_ms(6, NULL);
-#endif
-    }
-    i2c->data += i2c->count;
-
-    return ret == HAL_OK ? NVS_TransferResult_OK : NVS_TransferResult_Failed;
-}
-#else
 nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
 {
     while (HAL_I2C_GetState(&i2c_port) != HAL_I2C_STATE_READY);
 
+//    while (HAL_I2C_IsDeviceReady(&i2c_port, (uint16_t)(0xA0), 3, 100) != HAL_OK);
     HAL_StatusTypeDef ret;
 
     if(read)
@@ -291,112 +174,28 @@ nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
 
     return ret == HAL_OK ? NVS_TransferResult_OK : NVS_TransferResult_Failed;
 }
-#endif //FMP_I2C
+
 #endif // EEPROM_ENABLE
 
 #if KEYPAD_ENABLE == 1
-#ifdef FMP_I2C
+
 static uint8_t keycode = 0;
 static keycode_callback_ptr keypad_callback = NULL;
-static bool pendant_tx_active = 0;
-
-void I2C_PendantRead (uint32_t i2cAddr, uint8_t memaddress, uint8_t size, uint8_t * data, keycode_callback_ptr callback)
-{
-    
-    uint32_t ms = hal.get_elapsed_ticks();  //50 ms timeout
-    uint32_t timeout_ms = ms + 50;
-    
-    if(keypad_callback != NULL || pendant_tx_active) //we are in the middle of a read
-        return;
-
-    keycode = JOG_START;
-    keypad_callback = callback;
-    //pendant_active = 1;
-    
-    //hal.stream.write("read1"  ASCII_EOL);
-
-    //while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
-
-    //hal.stream.write("read2"  ASCII_EOL);
-    while((HAL_FMPI2C_Mem_Read_IT(&i2c_port, i2cAddr << 1, memaddress, 1, data, size)) != HAL_OK){
-        if (ms > timeout_ms){
-            keypad_callback = NULL;
-            keycode = 0;
-            i2c_init();
-            return; 
-        }
-        hal.delay_ms(1, NULL);
-        ms = hal.get_elapsed_ticks();
-    }
-}
-
-void I2C_PendantWrite (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes)
-{
-    
-    uint32_t ms = hal.get_elapsed_ticks();  //50 ms timeout
-    uint32_t timeout_ms = ms + 50;
-    
-    //hal.stream.write("write"  ASCII_EOL);
-
-    //while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
-
-    if(keypad_callback != NULL || pendant_tx_active) //we are in the middle of a read
-        return;
-    pendant_tx_active = 1;        
-
-    while((HAL_FMPI2C_Master_Transmit_IT(&i2c_port,  i2cAddr<<1, buf, bytes) != HAL_OK)){
-        if (ms > timeout_ms){
-            pendant_tx_active = 0;
-            i2c_init();
-            return;
-        }
-        hal.delay_ms(1, NULL);
-        ms = hal.get_elapsed_ticks();
-    }
-}
-
-void HAL_FMPI2C_MemRxCpltCallback(FMPI2C_HandleTypeDef *hi2c)
-{
-    if(keypad_callback && keycode != 0) {
-        keypad_callback(keycode);
-        keypad_callback = NULL;
-    }
-}
-
-void HAL_FMPI2C_MasterRxCpltCallback(FMPI2C_HandleTypeDef *hi2c)
-{
-    
-    if(keypad_callback && keycode != 0) {
-        keypad_callback(keycode);
-        keypad_callback = NULL;
-    }
-}
-
-void HAL_FMPI2C_MasterTxCpltCallback(FMPI2C_HandleTypeDef *hi2c)
-{    
-    pendant_tx_active = 0;
-}
-
-#else //FMP_I2C
-void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
-{
-    if(keypad_callback && keycode != 0) {
-        keypad_callback(keycode);
-        keypad_callback = NULL;
-    }
-}
-#endif //FMP_I2C
 
 void I2C_GetKeycode (uint32_t i2cAddr, keycode_callback_ptr callback)
 {
     keycode = 0;
     keypad_callback = callback;
 
-    #ifdef FMP_I2C
-    HAL_FMPI2C_Master_Receive_IT(&i2c_port, i2cAddr << 1, &keycode, 1);
-    #else
-     HAL_I2C_Master_Receive_IT(&i2c_port, KEYPAD_I2CADDR << 1, &keycode, 1);
-    #endif
+    HAL_I2C_Master_Receive_IT(&i2c_port, KEYPAD_I2CADDR << 1, &keycode, 1);
+}
+
+void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
+{
+    if(keypad_callback && keycode != 0) {
+        keypad_callback(keycode);
+        keypad_callback = NULL;
+    }
 }
 
 #endif // KEYPAD_ENABLE == 1
@@ -456,3 +255,5 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *reg
 #endif // TRINAMIC_ENABLE && TRINAMIC_I2C
 
 #endif // I2C_ENABLE
+
+#endif // Flexi_hal

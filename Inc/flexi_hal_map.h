@@ -36,9 +36,8 @@
 
 //#define EEPROM_ENABLE 1
 #define STM32F446xx 1
-//#define IOEXPAND_ENABLE 1
 #define HAS_IOPORTS 1
-//#define HAS_BOARD_INIT 1
+#define HAS_BOARD_INIT 1
 
 #if MODBUS_ENABLE
 #define MODBUS_SERIAL_PORT 2
@@ -86,7 +85,7 @@
 #define X_LIMIT_PORT            GPIOA
 #define X_LIMIT_PIN             5
 #define Y_LIMIT_PORT            GPIOB
-#define Y_LIMIT_PIN             6
+#define Y_LIMIT_PIN             9
 #define Z_LIMIT_PORT            GPIOC
 #define Z_LIMIT_PIN             13
 #define LIMIT_INMODE            GPIO_BITBAND
@@ -160,6 +159,10 @@
 #define FEED_HOLD_PIN           8
 #define CYCLE_START_PORT      	GPIOC
 #define CYCLE_START_PIN         11
+#if SAFETY_DOOR_ENABLE
+#define SAFETY_DOOR_PORT      	GPIOC
+#define SAFETY_DOOR_PIN         4
+#endif
 #define CONTROL_INMODE 			GPIO_BITBAND
 
 // Define probe switch input pin.

@@ -39,6 +39,8 @@
 #include "keypad/keypad.h"
 
 void I2C_GetKeycode (uint32_t i2cAddr, keycode_callback_ptr callback);
+void I2C_PendantRead (uint32_t i2cAddr, uint8_t memaddress, uint8_t size, uint8_t * data, keycode_callback_ptr callback);
+void I2C_PendantWrite (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes);
 
 #endif
 
