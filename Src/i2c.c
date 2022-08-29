@@ -57,9 +57,9 @@
 #ifdef FMP_I2C
 static FMPI2C_HandleTypeDef i2c_port = {
     .Instance = FMPI2C1,
-    //.Init.Timing = 0xC0000E12, //400 KHz
-    .Init.Timing = 0x0020081B, //1000 KHz
-    //.Init.Timing =0x00401650, //200 KHz
+    //.Init.Timing = 0xC0000E12, //100 KHz
+    //.Init.Timing = 0x0020081B, //1000 KHz
+    .Init.Timing =0x00401650, //400 KHz
     //.Init.DutyCycle = I2C_DUTYCYCLE_2,
     .Init.OwnAddress1 = 0,
     .Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT,
@@ -295,26 +295,89 @@ nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
 #endif // EEPROM_ENABLE
 
 #if KEYPAD_ENABLE == 1
-
+#ifdef FMP_I2C
 static uint8_t keycode = 0;
 static keycode_callback_ptr keypad_callback = NULL;
+static bool pendant_tx_active = 0;
 
-void I2C_PendantRead (uint32_t i2cAddr, uint8_t memaddress, uint8_t size, uint8_t * data)
+void I2C_PendantRead (uint32_t i2cAddr, uint8_t memaddress, uint8_t size, uint8_t * data, keycode_callback_ptr callback)
 {
-    while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
     
-    HAL_FMPI2C_Mem_Read(&i2c_port, i2cAddr << 1, memaddress, 1, data, size, 100);
+    uint32_t ms = hal.get_elapsed_ticks();  //50 ms timeout
+    uint32_t timeout_ms = ms + 50;
+    
+    if(keypad_callback != NULL || pendant_tx_active) //we are in the middle of a read
+        return;
+
+    keycode = JOG_START;
+    keypad_callback = callback;
+    //pendant_active = 1;
+    
+    //hal.stream.write("read1"  ASCII_EOL);
+
+    //while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
+
+    //hal.stream.write("read2"  ASCII_EOL);
+    while((HAL_FMPI2C_Mem_Read_IT(&i2c_port, i2cAddr << 1, memaddress, 1, data, size)) != HAL_OK){
+        if (ms > timeout_ms){
+            keypad_callback = NULL;
+            keycode = 0;
+            i2c_init();
+            return; 
+        }
+        hal.delay_ms(1, NULL);
+        ms = hal.get_elapsed_ticks();
+    }
 }
 
-#ifdef FMP_I2C
-void HAL_FMPI2C_MasterRxCpltCallback(FMPI2C_HandleTypeDef *hi2c)
+void I2C_PendantWrite (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes)
+{
+    
+    uint32_t ms = hal.get_elapsed_ticks();  //50 ms timeout
+    uint32_t timeout_ms = ms + 50;
+    
+    //hal.stream.write("write"  ASCII_EOL);
+
+    //while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
+
+    if(keypad_callback != NULL || pendant_tx_active) //we are in the middle of a read
+        return;
+    pendant_tx_active = 1;        
+
+    while((HAL_FMPI2C_Master_Transmit_IT(&i2c_port,  i2cAddr<<1, buf, bytes) != HAL_OK)){
+        if (ms > timeout_ms){
+            pendant_tx_active = 0;
+            i2c_init();
+            return;
+        }
+        hal.delay_ms(1, NULL);
+        ms = hal.get_elapsed_ticks();
+    }
+}
+
+void HAL_FMPI2C_MemRxCpltCallback(FMPI2C_HandleTypeDef *hi2c)
 {
     if(keypad_callback && keycode != 0) {
         keypad_callback(keycode);
         keypad_callback = NULL;
     }
 }
-#else
+
+void HAL_FMPI2C_MasterRxCpltCallback(FMPI2C_HandleTypeDef *hi2c)
+{
+    
+    if(keypad_callback && keycode != 0) {
+        keypad_callback(keycode);
+        keypad_callback = NULL;
+    }
+}
+
+void HAL_FMPI2C_MasterTxCpltCallback(FMPI2C_HandleTypeDef *hi2c)
+{    
+    pendant_tx_active = 0;
+}
+
+#else //FMP_I2C
 void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
 {
     if(keypad_callback && keycode != 0) {
@@ -322,7 +385,7 @@ void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
         keypad_callback = NULL;
     }
 }
-#endif
+#endif //FMP_I2C
 
 void I2C_GetKeycode (uint32_t i2cAddr, keycode_callback_ptr callback)
 {
