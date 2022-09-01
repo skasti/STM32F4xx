@@ -144,7 +144,7 @@ void I2C_PendantRead (uint32_t i2cAddr, uint8_t memaddress, uint8_t size, uint8_
     if(keypad_callback != NULL || pendant_tx_active) //we are in the middle of a read
         return;
 
-    keycode = JOG_START;
+    keycode = 'r';
     keypad_callback = callback;
 
     while((HAL_FMPI2C_Mem_Read_IT(&i2c_port, i2cAddr << 1, memaddress, 1, data, size)) != HAL_OK){
@@ -211,6 +211,8 @@ void I2C_GetKeycode (uint32_t i2cAddr, keycode_callback_ptr callback)
 }
 
 // called from stream drivers while tx is blocking, returns false to terminate
+
+#if 0
 bool flexi_stream_tx_blocking (void)
 {
     // TODO: Restructure st_prep_buffer() calls to be executed here during a long print.
@@ -219,6 +221,7 @@ bool flexi_stream_tx_blocking (void)
 
     return !(sys.rt_exec_state & EXEC_RESET);
 }
+#endif
 
 void board_init (void)
 {
