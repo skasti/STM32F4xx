@@ -44,7 +44,6 @@ static FMPI2C_HandleTypeDef i2c_port = {
     //.Init.Timing = 0xC0000E12, //100 KHz
     //.Init.Timing = 0x0020081B, //1000 KHz
     .Init.Timing =0x00401650, //400 KHz
-    //.Init.DutyCycle = I2C_DUTYCYCLE_2,
     .Init.OwnAddress1 = 0,
     .Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT,
     .Init.DualAddressMode = I2C_DUALADDRESS_DISABLE,
@@ -147,13 +146,7 @@ void I2C_PendantRead (uint32_t i2cAddr, uint8_t memaddress, uint8_t size, uint8_
 
     keycode = JOG_START;
     keypad_callback = callback;
-    //pendant_active = 1;
-    
-    //hal.stream.write("read1"  ASCII_EOL);
 
-    //while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
-
-    //hal.stream.write("read2"  ASCII_EOL);
     while((HAL_FMPI2C_Mem_Read_IT(&i2c_port, i2cAddr << 1, memaddress, 1, data, size)) != HAL_OK){
         if (ms > timeout_ms){
             keypad_callback = NULL;
@@ -172,10 +165,6 @@ void I2C_PendantWrite (uint32_t i2cAddr, uint8_t *buf, uint16_t bytes)
     uint32_t ms = hal.get_elapsed_ticks();  //50 ms timeout
     uint32_t timeout_ms = ms + 50;
     
-    //hal.stream.write("write"  ASCII_EOL);
-
-    //while (HAL_FMPI2C_GetState(&i2c_port) != HAL_FMPI2C_STATE_READY);
-
     if(keypad_callback != NULL || pendant_tx_active) //we are in the middle of a read
         return;
     pendant_tx_active = 1;        
@@ -221,9 +210,20 @@ void I2C_GetKeycode (uint32_t i2cAddr, keycode_callback_ptr callback)
     HAL_FMPI2C_Master_Receive_IT(&i2c_port, i2cAddr << 1, &keycode, 1);
 }
 
+// called from stream drivers while tx is blocking, returns false to terminate
+bool flexi_stream_tx_blocking (void)
+{
+    // TODO: Restructure st_prep_buffer() calls to be executed here during a long print.
+
+    grbl.on_execute_realtime(state_get());
+
+    return !(sys.rt_exec_state & EXEC_RESET);
+}
+
 void board_init (void)
 {
 //put new stuff here.
+
 
 }
 
