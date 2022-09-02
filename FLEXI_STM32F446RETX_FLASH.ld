@@ -42,9 +42,6 @@ MEMORY
   FLASH    (rx)    : ORIGIN = 0x8008000,   LENGTH = 512K - 16K - 16K
 }
 
-_EEPROM_Emul_Start = ORIGIN(EEPROM_EMUL);
-_EEPROM_Emul_Sector = 1;
-
 /* Sections */
 SECTIONS
 {
