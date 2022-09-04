@@ -54,7 +54,7 @@
 #if !IS_NUCLEO_DEVKIT // The Nucleo boards has an off-chip UART to USB interface.
 #define USB_SERIAL_CDC       1 // Serial communication via native USB.
 #endif
-//#define SAFETY_DOOR_ENABLE   1 // Enable safety door input.
+#define SAFETY_DOOR_ENABLE   1 // Enable safety door input.
 //#define BLUETOOTH_ENABLE     1 // Set to 1 for HC-05 module. Requires and claims one auxillary input pin.
 #define VFD_ENABLE           -1 // Set to 1 or 2 for Huanyang VFD spindle. More here https://github.com/grblHAL/Plugins_spindle
 #define MODBUS_ENABLE        1 // Set to 1 for auto direction, 2 for direction signal on auxillary output pin.
@@ -78,9 +78,6 @@
                                  // Currently only available for BOARD_T41BB5X_PRO and BOARD_T41U5XBB_SS.
 #define ESTOP_ENABLE         0 // When enabled only real-time report requests will be executed when the reset pin is asserted.
                                  // Note: if left commented out the default setting is determined from COMPATIBILITY_LEVEL.
-
-#define RGB_ENABLE 1
-#define INTERACTIVE_JOG_ENABLE 1
 
 // If the selected board map supports more than three motors ganging and/or auto-squaring
 // of axes can be enabled here.
