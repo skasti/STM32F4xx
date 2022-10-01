@@ -33,6 +33,8 @@ int main(void)
 {
     /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
 #ifdef HAS_BOOTLOADER
+    HAL_RCC_DeInit();
+    HAL_DeInit();
     extern uint8_t _FLASH_VectorTable;
     __disable_irq();
     SCB->VTOR = (uint32_t)&_FLASH_VectorTable;
