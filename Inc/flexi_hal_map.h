@@ -1,9 +1,9 @@
 /*
-  generic_map.h - driver code for STM32F4xx ARM processors
+  flexi_hal_map.h - driver code for STM32F4xx ARM processors
 
   Part of grblHAL
 
-  Copyright (c) 2020-2021 Terje Io
+  Copyright (c) 2022 Expatria Technologies
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,8 +19,6 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define IS_FLEXI_CNC 1
-
 #if N_ABC_MOTORS > 2
 #error "Axis configuration is not supported!"
 #endif
@@ -29,23 +27,32 @@
 #error "Trinamic plugin not supported!"
 #endif
 
-#define BOARD_NAME "Flexi-HAL"
-#ifdef I2C_ENABLE
-  #define FMP_I2C 1
+#if !defined(STM32F446xx) || HSE_VALUE != 25000000
+#error "This board has STM32F446 processor with a 25MHz crystal, select a corresponding build!"
 #endif
 
-//#define EEPROM_ENABLE 1
-#define STM32F446xx 1
-#define HAS_IOPORTS 1
-#define HAS_BOARD_INIT 1
+#define BOARD_NAME "Flexi-HAL"
+#define BOARD_URL "https://github.com/Expatria-Technologies/Flexi-HAL"
+
+#undef I2C_ENABLE
+#undef EEPROM_ENABLE
+
+#define I2C_ENABLE 1
+#define I2C_FASTMODE
+#define EEPROM_ENABLE 2
+#define HAS_IOPORTS
+#define HAS_BOARD_INIT
 
 #if MODBUS_ENABLE
+#define SERIAL2_MOD 3
 #define MODBUS_SERIAL_PORT 2
 #endif
 
-#if MPG_MODE == 1
+#if MPG_ENABLE
 #define MPG_MODE_PORT           GPIOA
 #define MPG_MODE_PIN            15
+#undef MPG_STREAM
+#define MPG_STREAM 1
 #endif
 
 //********on first revision of this board Y step/dir was flipped.  Use below config?
@@ -53,9 +60,9 @@
 // Define step pulse output pins.
 #define X_STEP_PORT             GPIOA
 #define X_STEP_PIN              3
-#define Y_STEP_PORT				      GPIOC
+#define Y_STEP_PORT             GPIOC
 #define Y_STEP_PIN              1
-#define Z_STEP_PORT				      GPIOB
+#define Z_STEP_PORT             GPIOB
 #define Z_STEP_PIN              8
 #define STEP_OUTMODE            GPIO_BITBAND
 //#define STEP_PINMODE            PINMODE_OD // Uncomment for open drain outputs
@@ -117,31 +124,31 @@
 #endif
 
 // Define spindle enable and spindle direction output pins.
-#define SPINDLE_ENABLE_PORT         GPIOB
-#define SPINDLE_ENABLE_PIN          2
-#define SPINDLE_DIRECTION_PORT      GPIOB
-#define SPINDLE_DIRECTION_PIN       1
-#define SPINDLE_OUTMODE             GPIO_BITBAND
+#define SPINDLE_ENABLE_PORT     GPIOB
+#define SPINDLE_ENABLE_PIN      2
+#define SPINDLE_DIRECTION_PORT  GPIOB
+#define SPINDLE_DIRECTION_PIN   1
+#define SPINDLE_OUTMODE         GPIO_BITBAND
 
 // Define spindle PWM output pin.
 #define SPINDLE_PWM_PORT_BASE   GPIOA_BASE
 #define SPINDLE_PWM_PIN         8
 
 // Define flood and mist coolant enable output pins.
-#define COOLANT_FLOOD_PORT          GPIOC
-#define COOLANT_FLOOD_PIN           9
-#define COOLANT_MIST_PORT           GPIOA
-#define COOLANT_MIST_PIN            7
-#define COOLANT_OUTMODE             GPIO_BITBAND
+#define COOLANT_FLOOD_PORT      GPIOC
+#define COOLANT_FLOOD_PIN       9
+#define COOLANT_MIST_PORT       GPIOA
+#define COOLANT_MIST_PIN        7
+#define COOLANT_OUTMODE         GPIO_BITBAND
 
-#define AUXOUTPUT0_PORT 		GPIOB
-#define AUXOUTPUT0_PIN 			13
-#define AUXOUTPUT1_PORT 		GPIOB
-#define AUXOUTPUT1_PIN 			0
-#define AUXOUTPUT2_PORT 		GPIOA
-#define AUXOUTPUT2_PIN 			4
-#define AUXOUTPUT3_PORT 		GPIOA
-#define AUXOUTPUT3_PIN 			6
+#define AUXOUTPUT0_PORT         GPIOB
+#define AUXOUTPUT0_PIN          13
+#define AUXOUTPUT1_PORT         GPIOB
+#define AUXOUTPUT1_PIN          0
+#define AUXOUTPUT2_PORT         GPIOA
+#define AUXOUTPUT2_PIN          4
+#define AUXOUTPUT3_PORT         GPIOA
+#define AUXOUTPUT3_PIN          6
 #define AUXOUTPUT_OUTMODE       GPIO_BITBAND
 
 #define AUXINPUT0_PORT          GPIOA
@@ -153,17 +160,17 @@
 
 
 // Define user-control controls (cycle start, reset, feed hold) input pins.
-#define RESET_PORT            	GPIOB
+#define RESET_PORT              GPIOB
 #define RESET_PIN               12
 #define FEED_HOLD_PORT          GPIOC
 #define FEED_HOLD_PIN           8
-#define CYCLE_START_PORT      	GPIOC
+#define CYCLE_START_PORT        GPIOC
 #define CYCLE_START_PIN         11
 #if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PORT      	GPIOC
+#define SAFETY_DOOR_PORT        GPIOC
 #define SAFETY_DOOR_PIN         4
 #endif
-#define CONTROL_INMODE 			GPIO_BITBAND
+#define CONTROL_INMODE          GPIO_BITBAND
 
 // Define probe switch input pin.
 #define PROBE_PORT              GPIOB

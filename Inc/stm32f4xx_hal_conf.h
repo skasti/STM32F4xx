@@ -56,7 +56,7 @@
 /* #define HAL_IWDG_MODULE_ENABLED   */
 /* #define HAL_LTDC_MODULE_ENABLED   */
 /* #define HAL_RNG_MODULE_ENABLED   */
-/* #define HAL_RTC_MODULE_ENABLED   */
+#define HAL_RTC_MODULE_ENABLED
 /* #define HAL_SAI_MODULE_ENABLED   */
 /* #define HAL_SD_MODULE_ENABLED   */
 /* #define HAL_MMC_MODULE_ENABLED   */
@@ -74,7 +74,9 @@
 /* #define HAL_QSPI_MODULE_ENABLED   */
 /* #define HAL_QSPI_MODULE_ENABLED   */
 /* #define HAL_CEC_MODULE_ENABLED   */
-/* #define HAL_FMPI2C_MODULE_ENABLED   */
+#ifdef STM32F446xx
+#define HAL_FMPI2C_MODULE_ENABLED
+#endif
 /* #define HAL_SPDIFRX_MODULE_ENABLED   */
 /* #define HAL_DFSDM_MODULE_ENABLED   */
 /* #define HAL_LPTIM_MODULE_ENABLED   */
