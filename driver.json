@@ -21,6 +21,7 @@
       { "id": "bluetooth_bridge" },
       { "id": "eeprom" },
       { "id": "keypad" },
+      { "id": "macros" },
       { "id": "laser_ppi" },
       { "id": "laser_cluster" },
       { "id": "laser_coolant" },
@@ -362,7 +363,7 @@
       },
       "symbols": {
           "STM32F411xE": "",
-          "NUCLEO_F11": "",
+          "NUCLEO_F411": "",
           "RTC_ENABLE": 1
       }
     },
