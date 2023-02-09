@@ -669,7 +669,7 @@ const io_stream_t *serial2Init (uint32_t baud_rate)
 
 #elif SERIAL2_MOD == 3
 
-#if IS_FLEXI_CNC
+#ifdef BOARD_FLEXI_HAL
 
     UART_HandleTypeDef huart3;
 
