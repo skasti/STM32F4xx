@@ -71,18 +71,26 @@ static void usbRxCancel (void)
 static inline bool usb_write (void)
 {
     static uint8_t dummy = 0;
+    uint32_t ms = hal.get_elapsed_ticks();  //50 ms timeout
+    uint32_t timeout_ms = ms + 50;        
 
     txbuf.s = txbuf.use_tx2data ? txbuf.data2 : txbuf.data;
 
     while(CDC_Transmit_FS((uint8_t *)txbuf.s, txbuf.length) == USBD_BUSY) {
         if(!hal.stream_blocking_callback())
             return false;
+        if (ms > timeout_ms)
+            return false;        
+        ms = hal.get_elapsed_ticks();              
     }
 
     if(txbuf.length % 64 == 0) {
         while(CDC_Transmit_FS(&dummy, 0) == USBD_BUSY) {
             if(!hal.stream_blocking_callback())
                 return false;
+            if (ms > timeout_ms)
+                return false;                          
+            ms = hal.get_elapsed_ticks();                  
         }
     }
 
@@ -99,12 +107,18 @@ static inline bool usb_write (void)
 static bool usbPutC (const char c)
 {
     static uint8_t buf[1];
+    uint32_t ms = hal.get_elapsed_ticks();  //50 ms timeout
+    uint32_t timeout_ms = ms + 50;    
 
     *buf = c;
 
     while(CDC_Transmit_FS(buf, 1) == USBD_BUSY) {
+        if (ms > timeout_ms){
+            return false;
+        }        
         if(!hal.stream_blocking_callback())
             return false;
+        ms = hal.get_elapsed_ticks();            
     }
 
     return true;
