@@ -4,7 +4,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2019-2022 Terje Io
+  Copyright (c) 2019-2023 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -61,6 +61,21 @@
 #include "keypad/keypad.h"
 #endif
 
+#if QEI_ENABLE
+#include "encoder/encoder.h"
+#define QEI_A_BIT (1<<QEI_A_PIN)
+#define QEI_B_BIT (1<<QEI_B_PIN)
+ #ifdef QEI_SELECT_PIN
+  #define QEI_SELECT_BIT (1<<QEI_SELECT_PIN)
+ #else
+  #define QEI_SELECT_BIT 0
+ #endif
+#else
+#define QEI_A_BIT 0
+#define QEI_B_BIT 0
+#define QEI_SELECT_BIT 0
+#endif
+
 #if FLASH_ENABLE
 #include "flash.h"
 #endif
@@ -100,37 +115,71 @@
 #define MPG_MODE_BIT 0
 #endif
 
-#if CONTROL_MASK != (RESET_BIT+FEED_HOLD_BIT+CYCLE_START_BIT+SAFETY_DOOR_BIT)
+#if CONTROL_MASK != CONTROL_MASK_SUM
 #error Interrupt enabled input pins must have unique pin numbers!
 #endif
 
-#define DRIVER_IRQMASK (LIMIT_MASK|CONTROL_MASK|I2C_STROBE_BIT|SPINDLE_INDEX_BIT|MPG_MODE_BIT)
+#define DRIVER_IRQMASK (LIMIT_MASK|CONTROL_MASK|I2C_STROBE_BIT|SPINDLE_INDEX_BIT|MPG_MODE_BIT|QEI_A_BIT|QEI_B_BIT|QEI_SELECT_BIT)
 
-#ifdef Z_LIMIT_POLL
-#if (DRIVER_IRQMASK-Z_LIMIT_BIT) != (LIMIT_MASK-Z_LIMIT_BIT+CONTROL_MASK+I2C_STROBE_BIT+SPINDLE_INDEX_BIT+MPG_MODE_BIT)
+#if DRIVER_IRQMASK != (LIMIT_MASK_SUM+CONTROL_MASK_SUM+I2C_STROBE_BIT+SPINDLE_INDEX_BIT+MPG_MODE_BIT+QEI_A_BIT+QEI_B_BIT+QEI_SELECT_BIT)
 #error Interrupt enabled input pins must have unique pin numbers!
 #endif
-#else
-#if DRIVER_IRQMASK != (LIMIT_MASK+CONTROL_MASK+I2C_STROBE_BIT+SPINDLE_INDEX_BIT+MPG_MODE_BIT)
-#error Interrupt enabled input pins must have unique pin numbers!
-#endif
-#endif
+
+#define STEPPER_TIMER_DIV 4
+#define TIMER_CLOCK_MUL(d) (d == RCC_HCLK_DIV1 ? 1 : 2)
 
 typedef union {
     uint8_t mask;
     struct {
-        uint8_t limits :1,
-                door   :1,
-                unused :6;
+        uint8_t limits     :1,
+                door       :1,
+                qei_select :1,
+                unused     :5;
     };
 } debounce_t;
 
-#if (!VFD_SPINDLE || N_SPINDLE > 1) && defined(SPINDLE_ENABLE_PIN)
+#if QEI_ENABLE
+
+#define QEI_DEBOUNCE 3
+#define QEI_VELOCITY_TIMEOUT 100
+
+typedef enum {
+   QEI_DirUnknown = 0,
+   QEI_DirCW,
+   QEI_DirCCW
+} qei_dir_t;
+
+typedef union {
+    uint_fast8_t pins;
+    struct {
+        uint_fast8_t a :1,
+                     b :1;
+    };
+} qei_state_t;
+
+typedef struct {
+    encoder_t encoder;
+    int32_t count;
+    int32_t vel_count;
+    uint_fast16_t state;
+    qei_dir_t dir;
+    volatile uint32_t dbl_click_timeout;
+    volatile uint32_t vel_timeout;
+    uint32_t vel_timestamp;
+} qei_t;
+
+static qei_t qei = {0};
+static bool qei_enable = false;
+
+#endif
+
+#if DRIVER_SPINDLE_ENABLE && defined(SPINDLE_ENABLE_PIN)
 
 #define DRIVER_SPINDLE
 
 #if defined(SPINDLE_PWM_TIMER_N)
 static bool pwmEnabled = false;
+static spindle_id_t spindle_id = -1;
 static spindle_pwm_t spindle_pwm;
 static void spindle_set_speed (uint_fast16_t pwm_value);
 #endif
@@ -189,6 +238,16 @@ static input_signal_t inputpin[] = {
 #endif
 #if SPINDLE_SYNC_ENABLE
     { .id = Input_SpindleIndex,   .port = SPINDLE_INDEX_PORT, .pin = SPINDLE_INDEX_PIN,   .group = PinGroup_SpindleIndex },
+#endif
+#if QEI_ENABLE
+    { .id = Input_QEI_A,          .port = QEI_A_PORT,         .pin = QEI_A_PIN,           .group = PinGroup_QEI },
+    { .id = Input_QEI_B,          .port = QEI_B_PORT,         .pin = QEI_B_PIN,           .group = PinGroup_QEI },
+  #if QEI_SELECT_ENABLED
+    { .id = Input_QEI_Select,     .port = QEI_SELECT_PORT,    .pin = QEI_SELECT_PIN,      .group = PinGroup_QEI_Select },
+  #endif
+  #if QEI_INDEX_ENABLED
+    { .id = Input_QEI_Index,      .port = QEI_INDEX_PORT,     .pin = QEI_INDEX_PIN,       .group = PinGroup_QEI },
+  #endif
 #endif
 // Aux input pins must be consecutive in this array
 #ifdef AUXINPUT0_PIN
@@ -376,8 +435,8 @@ static output_signal_t outputpin[] = {
 };
 
 extern __IO uint32_t uwTick;
-static uint32_t pulse_length, pulse_delay, aux_irq = 0;;
-static bool IOInitDone = false;
+static uint32_t pulse_length, pulse_delay, aux_irq = 0;
+static bool IOInitDone = false, limits_irq_enabled = false;
 static axes_signals_t next_step_outbits;
 static delay_t delay = { .ms = 1, .callback = NULL }; // NOTE: initial ms set to 1 for "resetting" systick timer on startup
 static debounce_t debounce;
@@ -418,7 +477,6 @@ static spindle_encoder_t spindle_encoder = {
     .tics_per_irq = 4
 };
 static spindle_sync_t spindle_tracker;
-static volatile bool spindleLock = false;
 #if RPM_COUNTER_N == 2
 static volatile uint32_t rpm_timer_ovf = 0;
 #define RPM_TIMER_COUNT (RPM_TIMER->CNT | (rpm_timer_ovf << 16))
@@ -698,13 +756,13 @@ inline static __attribute__((always_inline)) void stepperSetDirOutputs (axes_sig
 #elif DIRECTION_OUTMODE == GPIO_MAP
     DIRECTION_PORT->ODR = (DIRECTION_PORT->ODR & ~DIRECTION_MASK) | dir_outmap[dir_outbits.value];
   #ifdef X2_DIRECTION_PIN
-    DIGITAL_OUT(X2_DIRECTION_PORT, X2_DIRECTION_PIN, (dir_outbits.x ^ settings.steppers.dir_invert.x) ^ settings.steppers.ganged_dir_invert.x;
+    DIGITAL_OUT(X2_DIRECTION_PORT, X2_DIRECTION_PIN, (dir_outbits.x ^ settings.steppers.dir_invert.x) ^ settings.steppers.ganged_dir_invert.x);
   #endif
   #ifdef Y2_DIRECTION_PIN
     DIGITAL_OUT(Y2_DIRECTION_PORT, Y2_DIRECTION_PIN, (dir_outbits.y ^ settings.steppers.dir_invert.y) ^ settings.steppers.ganged_dir_invert.y);
   #endif
   #ifdef Z2_DIRECTION_PIN
-    DIGITAL_OUT(Z2_DIRECTION_PORT, Z2_DIRECTION_PIN, (dir_outbits.z ^ settings.steppers.dir_invert.z) ^ settings.steppers.ganged_dir_invert.z;
+    DIGITAL_OUT(Z2_DIRECTION_PORT, Z2_DIRECTION_PIN, (dir_outbits.z ^ settings.steppers.dir_invert.z) ^ settings.steppers.ganged_dir_invert.z);
   #endif
 #else // DIRECTION_OUTMODE = SHIFTx
  #ifdef GANGING_ENABLED
@@ -875,7 +933,7 @@ static void stepperPulseStartSynchronized (stepper_t *stepper)
 // Enable/disable limit pins interrupt
 static void limitsEnable (bool on, bool homing)
 {
-    if(on) {
+    if((limits_irq_enabled = on)) {
         EXTI->PR |= LIMIT_MASK;     // Clear any pending limit interrupts
         EXTI->IMR |= LIMIT_MASK;    // and enable
     } else
@@ -884,7 +942,7 @@ static void limitsEnable (bool on, bool homing)
 
 // Returns limit state as an axes_signals_t variable.
 // Each bitfield bit indicates an axis limit, where triggered is 1 and not triggered is 0.
-inline static limit_signals_t limitsGetState()
+inline static limit_signals_t limitsGetState (void)
 {
     limit_signals_t signals = {0};
 
@@ -1136,71 +1194,70 @@ static void spindleSetStateVariable (spindle_state_t state, float rpm)
         spindle_data.rpm_low_limit = rpm - tolerance;
         spindle_data.rpm_high_limit = rpm + tolerance;
     }
+    spindle_data.state_programmed.on = state.on;
+    spindle_data.state_programmed.ccw = state.ccw;
     spindle_data.rpm_programmed = spindle_data.rpm = rpm;
 #endif
 }
 
-bool spindleConfig (void)
+static bool spindleConfig (spindle_ptrs_t *spindle)
 {
-    static spindle_settings_t spindle = {0};
+    if(spindle == NULL)
+        return false;
 
-    if(hal.spindle.rpm_max > 0.0f && memcmp(&spindle, &settings.spindle, sizeof(spindle_settings_t))) {
+    RCC_ClkInitTypeDef clock;
+    uint32_t latency, prescaler = settings.spindle.pwm_freq > 4000.0f ? 1 : (settings.spindle.pwm_freq > 200.0f ? 12 : 25);
 
-        RCC_ClkInitTypeDef clock;
-        uint32_t latency, prescaler = settings.spindle.pwm_freq > 4000.0f ? 1 : (settings.spindle.pwm_freq > 200.0f ? 12 : 25);
+    HAL_RCC_GetClockConfig(&clock, &latency);
 
-        HAL_RCC_GetClockConfig(&clock, &latency);
-        memcpy(&spindle, &settings.spindle, sizeof(spindle_settings_t));
+#if SPINDLE_PWM_TIMER_N == 1
+    if((spindle->cap.variable = !settings.spindle.flags.pwm_disable && spindle_precompute_pwm_values(spindle, &spindle_pwm, (HAL_RCC_GetPCLK2Freq() * TIMER_CLOCK_MUL(clock.APB2CLKDivider)) / prescaler))) {
+#else
+    if((spindle->cap.variable = !settings.spindle.flags.pwm_disable && spindle_precompute_pwm_values(spindle, &spindle_pwm, (HAL_RCC_GetPCLK1Freq() * TIMER_CLOCK_MUL(clock.APB1CLKDivider)) / prescaler))) {
+#endif
 
-    #if SPINDLE_PWM_TIMER_N == 1
-        if((hal.spindle.cap.variable = !settings.spindle.flags.pwm_disable && spindle_precompute_pwm_values(&spindle_pwm, (HAL_RCC_GetPCLK2Freq() * (clock.APB2CLKDivider == 0 ? 1 : 2)) / prescaler))) {
-    #else
-        if((hal.spindle.cap.variable = !settings.spindle.flags.pwm_disable && spindle_precompute_pwm_values(&spindle_pwm, (HAL_RCC_GetPCLK1Freq() * (clock.APB1CLKDivider == 0 ? 1 : 2)) / prescaler))) {
-    #endif
+        spindle->set_state = spindleSetStateVariable;
 
-            hal.spindle.set_state = spindleSetStateVariable;
+        SPINDLE_PWM_TIMER->CR1 &= ~TIM_CR1_CEN;
 
-            SPINDLE_PWM_TIMER->CR1 &= ~TIM_CR1_CEN;
+        TIM_Base_InitTypeDef timerInitStructure = {
+            .Prescaler = prescaler - 1,
+            .CounterMode = TIM_COUNTERMODE_UP,
+            .Period = spindle_pwm.period - 1,
+            .ClockDivision = TIM_CLOCKDIVISION_DIV1,
+            .RepetitionCounter = 0
+        };
 
-            TIM_Base_InitTypeDef timerInitStructure = {
-                .Prescaler = prescaler - 1,
-                .CounterMode = TIM_COUNTERMODE_UP,
-                .Period = spindle_pwm.period - 1,
-                .ClockDivision = TIM_CLOCKDIVISION_DIV1,
-                .RepetitionCounter = 0
-            };
+        TIM_Base_SetConfig(SPINDLE_PWM_TIMER, &timerInitStructure);
 
-            TIM_Base_SetConfig(SPINDLE_PWM_TIMER, &timerInitStructure);
-
-            SPINDLE_PWM_TIMER->CCER &= ~SPINDLE_PWM_CCER_EN;
-            SPINDLE_PWM_TIMER_CCMR &= ~SPINDLE_PWM_CCMR_OCM_CLR;
-            SPINDLE_PWM_TIMER_CCMR |= SPINDLE_PWM_CCMR_OCM_SET;
-            SPINDLE_PWM_TIMER_CCR = 0;
-    #if SPINDLE_PWM_TIMER_N == 1
-            SPINDLE_PWM_TIMER->BDTR |= TIM_BDTR_OSSR|TIM_BDTR_OSSI;
-    #endif
-            if(settings.spindle.invert.pwm) {
-                SPINDLE_PWM_TIMER->CCER |= SPINDLE_PWM_CCER_POL;
-                SPINDLE_PWM_TIMER->CR2 |= SPINDLE_PWM_CR2_OIS;
-            } else {
-                SPINDLE_PWM_TIMER->CCER &= ~SPINDLE_PWM_CCER_POL;
-                SPINDLE_PWM_TIMER->CR2 &= ~SPINDLE_PWM_CR2_OIS;
-            }
-            SPINDLE_PWM_TIMER->CCER |= SPINDLE_PWM_CCER_EN;
-            SPINDLE_PWM_TIMER->CR1 |= TIM_CR1_CEN;
-
+        SPINDLE_PWM_TIMER->CCER &= ~SPINDLE_PWM_CCER_EN;
+        SPINDLE_PWM_TIMER_CCMR &= ~SPINDLE_PWM_CCMR_OCM_CLR;
+        SPINDLE_PWM_TIMER_CCMR |= SPINDLE_PWM_CCMR_OCM_SET;
+        SPINDLE_PWM_TIMER_CCR = 0;
+#if SPINDLE_PWM_TIMER_N == 1
+        SPINDLE_PWM_TIMER->BDTR |= TIM_BDTR_OSSR|TIM_BDTR_OSSI;
+#endif
+        if(settings.spindle.invert.pwm) {
+            SPINDLE_PWM_TIMER->CCER |= SPINDLE_PWM_CCER_POL;
+            SPINDLE_PWM_TIMER->CR2 |= SPINDLE_PWM_CR2_OIS;
         } else {
-            if(pwmEnabled)
-                hal.spindle.set_state((spindle_state_t){0}, 0.0f);
-
-            hal.spindle.set_state = spindleSetState;
+            SPINDLE_PWM_TIMER->CCER &= ~SPINDLE_PWM_CCER_POL;
+            SPINDLE_PWM_TIMER->CR2 &= ~SPINDLE_PWM_CR2_OIS;
         }
+        SPINDLE_PWM_TIMER->CCER |= SPINDLE_PWM_CCER_EN;
+        SPINDLE_PWM_TIMER->CR1 |= TIM_CR1_CEN;
+
+    } else {
+        if(pwmEnabled)
+            spindle->set_state((spindle_state_t){0}, 0.0f);
+
+        spindle->set_state = spindleSetState;
     }
 
-    spindle_update_caps(hal.spindle.cap.variable ? &spindle_pwm : NULL);
+    spindle_update_caps(spindle, spindle->cap.variable ? &spindle_pwm : NULL);
 
 #if SPINDLE_SYNC_ENABLE
-    hal.spindle.cap.at_speed = hal.spindle.get_data == spindleGetData;
+    spindle->cap.at_speed = spindle->get_data == spindleGetData;
 #endif
 
     return true;
@@ -1272,7 +1329,7 @@ static spindle_data_t *spindleGetData (spindle_data_request_t request)
 
 static void spindleDataReset (void)
 {
-    while(spindleLock);
+    while(spindle_encoder.spin_lock);
 
     uint32_t timeout = uwTick + 1000; // 1 second
 
@@ -1285,7 +1342,6 @@ static void spindleDataReset (void)
 //            alarm?
     }
 
-
     RPM_TIMER->EGR |= TIM_EGR_UG; // Reload RPM timer
     RPM_COUNTER->CR1 &= ~TIM_CR1_CEN;
 
@@ -1293,7 +1349,7 @@ static void spindleDataReset (void)
     rpm_timer_ovf = 0;
 #endif
 
-    spindle_encoder.timer.last_index =
+    spindle_encoder.timer.last_pulse =
     spindle_encoder.timer.last_index = RPM_TIMER_COUNT;
 
     spindle_encoder.timer.pulse_length =
@@ -1407,7 +1463,7 @@ static uint32_t getElapsedTicks (void)
 }
 
 // Configures peripherals when settings are initialized or changed
-void settings_changed (settings_t *settings)
+void settings_changed (settings_t *settings, settings_changed_flags_t changed)
 {
 #if USE_STEPDIR_MAP
     stepdirmap_init(settings);
@@ -1427,17 +1483,21 @@ void settings_changed (settings_t *settings)
 #endif
 
 #ifdef SPINDLE_PWM_TIMER_N
-        if(hal.spindle.config == spindleConfig)
-            spindleConfig();
+        if(changed.spindle) {
+            spindleConfig(spindle_get_hal(spindle_id, SpindleHAL_Configured));
+            if(spindle_id == spindle_get_default())
+                spindle_select(spindle_id);
+        }
 #endif
 
 #if SPINDLE_SYNC_ENABLE
 
-        if((hal.spindle.get_data = (hal.spindle.cap.at_speed = settings->spindle.ppr > 0) ? spindleGetData : NULL) &&
+        if((hal.spindle_data.get = settings->spindle.ppr > 0 ? spindleGetData : NULL) &&
              (spindle_encoder.ppr != settings->spindle.ppr || pidf_config_changed(&spindle_tracker.pid, &settings->position.pid))) {
 
-            hal.spindle.reset_data = spindleDataReset;
-            hal.spindle.set_state((spindle_state_t){0}, 0.0f);
+            hal.spindle_data.reset = spindleDataReset;
+            if(spindle_get(0))
+                spindle_get(0)->set_state((spindle_state_t){0}, 0.0f);
 
             pidf_init(&spindle_tracker.pid, &settings->position.pid);
 
@@ -1446,7 +1506,7 @@ void settings_changed (settings_t *settings)
 #else
             float timer_resolution = 1.0f / 1000000.0f; // 1 us resolution
 #endif
-            spindle_tracker.min_cycles_per_tick = hal.f_step_timer / (uint32_t)(settings->axis[Z_AXIS].max_rate * settings->axis[Z_AXIS].steps_per_mm / 60.0f);
+            spindle_tracker.min_cycles_per_tick = HAL_RCC_GetPCLK2Freq() / (uint32_t)(settings->axis[Z_AXIS].max_rate * settings->axis[Z_AXIS].steps_per_mm / 60.0f);
             spindle_encoder.ppr = settings->spindle.ppr;
             spindle_encoder.tics_per_irq = max(1, spindle_encoder.ppr / 32);
             spindle_encoder.pulse_distance = 1.0f / spindle_encoder.ppr;
@@ -1526,6 +1586,11 @@ void settings_changed (settings_t *settings)
                     input->irq_mode = control_fei.reset ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                     break;
 
+                case Input_EStop:
+                    pullup = !settings->control_disable_pullup.e_stop;
+                    input->irq_mode = control_fei.e_stop ? IRQ_Mode_Falling : IRQ_Mode_Rising;
+                    break;
+
                 case Input_FeedHold:
                     pullup = !settings->control_disable_pullup.feed_hold;
                     input->irq_mode = control_fei.feed_hold ? IRQ_Mode_Falling : IRQ_Mode_Rising;
@@ -1584,7 +1649,7 @@ void settings_changed (settings_t *settings)
                     input->irq_mode = limit_fei.c ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                     break;
 
-                case Input_ModeSelect:
+                case Input_MPGSelect:
                     pullup = true;
                     input->irq_mode = IRQ_Mode_Change;
                     break;
@@ -1598,7 +1663,32 @@ void settings_changed (settings_t *settings)
                     pullup = true;
                     input->irq_mode = IRQ_Mode_Falling;
                     break;
+#if QEI_ENABLE
+                case Input_QEI_A:
+                    if(qei_enable)
+                        input->irq_mode = IRQ_Mode_Change;
+                    break;
 
+                case Input_QEI_B:
+                    if(qei_enable)
+                        input->irq_mode = IRQ_Mode_Change;
+                    break;
+
+  #if QEI_INDEX_ENABLED
+                case Input_QEI_Index:
+                    if(qei_enable)
+                        input->irq_mode = IRQ_Mode_None;
+                    break;
+  #endif
+
+  #if QEI_SELECT_ENABLED
+                case Input_QEI_Select:
+                    input->debounce = true;
+                    if(qei_enable)
+                        input->irq_mode = IRQ_Mode_Falling;
+                    break;
+  #endif
+#endif
                 default:
                     break;
             }
@@ -1763,10 +1853,87 @@ void setPeriphPinDescription (const pin_function_t function, const pin_group_t g
     } while(ppin);
 }
 
+#if QEI_ENABLE
+
+static void qei_update (void)
+{
+    const uint8_t encoder_valid_state[] = {0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0};
+
+    uint_fast8_t idx;
+    qei_state_t state = {0};
+
+    state.a = DIGITAL_IN(QEI_A_PORT, QEI_A_PIN);
+    state.b = DIGITAL_IN(QEI_B_PORT, QEI_B_PIN);
+
+    idx = (((qei.state << 2) & 0x0F) | state.pins);
+
+    if(encoder_valid_state[idx] ) {
+
+//        int32_t count = qei.count;
+
+        qei.state = ((qei.state << 4) | idx) & 0xFF;
+
+        if (qei.state == 0x42 || qei.state == 0xD4 || qei.state == 0x2B || qei.state == 0xBD) {
+            qei.count--;
+            if(qei.vel_timeout == 0 || qei.dir == QEI_DirCW) {
+                qei.dir = QEI_DirCCW;
+                qei.encoder.event.position_changed = hal.encoder.on_event != NULL;
+                hal.encoder.on_event(&qei.encoder, qei.count);
+            }
+        } else if(qei.state == 0x81 || qei.state == 0x17 || qei.state == 0xE8 || qei.state == 0x7E) {
+            qei.count++;
+            if(qei.vel_timeout == 0 || qei.dir == QEI_DirCCW) {
+                qei.dir = QEI_DirCW;
+                qei.encoder.event.position_changed = hal.encoder.on_event != NULL;
+                hal.encoder.on_event(&qei.encoder, qei.count);
+            }
+        }
+    }
+}
+
+static void qei_reset (uint_fast8_t id)
+{
+    qei.vel_timeout = 0;
+    qei.dir = QEI_DirUnknown;
+    qei.count = qei.vel_count = 0;
+    qei.vel_timestamp = uwTick;
+    qei.vel_timeout = qei.encoder.axis != 0xFF ? QEI_VELOCITY_TIMEOUT : 0;
+}
+
+#if QEI_SELECT_ENABLED
+
+static void qei_select_handler (void)
+{
+    if(DIGITAL_IN(QEI_SELECT_PORT, QEI_SELECT_PIN))
+        return;
+
+    if(!qei.dbl_click_timeout) {
+        qei.dbl_click_timeout = qei.encoder.settings->dbl_click_window;
+    } else if(qei.dbl_click_timeout < qei.encoder.settings->dbl_click_window) {
+        qei.dbl_click_timeout = 0;
+        qei.encoder.event.dbl_click = On;
+        hal.encoder.on_event(&qei.encoder, qei.count);
+    }
+}
+
+#endif
+
+// dummy handler, called on events if plugin init fails
+static void encoder_event (encoder_t *encoder, int32_t position)
+{
+    UNUSED(position);
+    encoder->event.events = 0;
+}
+
+#endif // QEI_ENABLE
+
 // Initializes MCU peripherals for Grbl use
 static bool driver_setup (settings_t *settings)
 {
-    //    Interrupt_disableSleepOnIsrExit();
+    uint32_t latency;
+    RCC_ClkInitTypeDef clock_cfg;
+
+    HAL_RCC_GetClockConfig(&clock_cfg, &latency);
 
     __HAL_RCC_TIM1_CLK_ENABLE();
     __HAL_RCC_TIM2_CLK_ENABLE();
@@ -1816,17 +1983,19 @@ static bool driver_setup (settings_t *settings)
     STEPPER_TIMER_CLOCK_ENA();
     STEPPER_TIMER->CR1 &= ~TIM_CR1_CEN;
     STEPPER_TIMER->SR &= ~TIM_SR_UIF;
+    STEPPER_TIMER->PSC = STEPPER_TIMER_DIV - 1;
     STEPPER_TIMER->CNT = 0;
+    STEPPER_TIMER->CR1 |= TIM_CR1_DIR;
     STEPPER_TIMER->DIER |= TIM_DIER_UIE;
 
-    HAL_NVIC_SetPriority(STEPPER_TIMER_IRQn, 1, 0);
+    HAL_NVIC_SetPriority(STEPPER_TIMER_IRQn, 0, 2);
     NVIC_EnableIRQ(STEPPER_TIMER_IRQn);
 
  // Single-shot 100 ns per tick
 
     PULSE_TIMER_CLOCK_ENA();
     PULSE_TIMER->CR1 |= TIM_CR1_OPM|TIM_CR1_DIR|TIM_CR1_CKD_1|TIM_CR1_ARPE|TIM_CR1_URS;
-    PULSE_TIMER->PSC = hal.f_step_timer / 10000000UL - 1;
+    PULSE_TIMER->PSC = (HAL_RCC_GetPCLK1Freq() * TIMER_CLOCK_MUL(clock_cfg.APB1CLKDivider) / 10000000UL) - 1;
     PULSE_TIMER->SR &= ~(TIM_SR_UIF|TIM_SR_CC1IF);
     PULSE_TIMER->CNT = 0;
     PULSE_TIMER->DIER |= TIM_DIER_UIE;
@@ -1840,7 +2009,11 @@ static bool driver_setup (settings_t *settings)
         // Single-shot 0.1 ms per tick
         DEBOUNCE_TIMER_CLOCK_ENA();
         DEBOUNCE_TIMER->CR1 |= TIM_CR1_OPM|TIM_CR1_DIR|TIM_CR1_CKD_1|TIM_CR1_ARPE|TIM_CR1_URS;
-        DEBOUNCE_TIMER->PSC = hal.f_step_timer / 10000UL - 1;
+#if timerAPB2(DEBOUNCE_TIMER_N)
+        DEBOUNCE_TIMER->PSC = HAL_RCC_GetPCLK2Freq() * TIMER_CLOCK_MUL(clock_cfg.APB2CLKDivider) / 10000UL - 1;
+#else
+        DEBOUNCE_TIMER->PSC = HAL_RCC_GetPCLK1Freq() * TIMER_CLOCK_MUL(clock_cfg.APB1CLKDivider) / 10000UL - 1;
+#endif
         DEBOUNCE_TIMER->SR &= ~TIM_SR_UIF;
         DEBOUNCE_TIMER->ARR = 400; // 40 ms timeout
         DEBOUNCE_TIMER->DIER |= TIM_DIER_UIE;
@@ -1885,7 +2058,7 @@ static bool driver_setup (settings_t *settings)
     // Single-shot 1 us per tick
     PPI_TIMER_CLOCK_ENA();
     PPI_TIMER->CR1 |= TIM_CR1_OPM|TIM_CR1_DIR|TIM_CR1_CKD_1|TIM_CR1_ARPE|TIM_CR1_URS;
-    PPI_TIMER->PSC = hal.f_step_timer / 1000000UL - 1;
+    PPI_TIMER->PSC = HAL_RCC_GetPCLK1Freq() * TIMER_CLOCK_MUL(clock_cfg.APB1CLKDivider) / 1000000UL - 1;
     PPI_TIMER->SR &= ~(TIM_SR_UIF|TIM_SR_CC1IF);
     PPI_TIMER->CNT = 0;
     PPI_TIMER->DIER |= TIM_DIER_UIE;
@@ -1898,18 +2071,16 @@ static bool driver_setup (settings_t *settings)
 
     RPM_TIMER_CLOCK_ENA();
     RPM_TIMER->CR1 = TIM_CR1_CKD_1|TIM_CR1_URS;
-#if RPM_COUNTER_N == 2
-    RPM_TIMER->PSC = hal.f_step_timer / 50000UL - 1;
-    RPM_TIMER->DIER |= TIM_DIER_UIE;
+#if timerAPB2(RPM_TIMER_N)
+    RPM_TIMER->PSC = HAL_RCC_GetPCLK2Freq() * TIMER_CLOCK_MUL(clock_cfg.APB2CLKDivider) / 1000000UL - 1;
 #else
-    RPM_TIMER->PSC = hal.f_step_timer / 1000000UL - 1;
+    RPM_TIMER->PSC = HAL_RCC_GetPCLK1Freq() * TIMER_CLOCK_MUL(clock_cfg.APB1CLKDivider) / 1000000UL - 1;
 #endif
+    RPM_TIMER->DIER |= TIM_DIER_UIE;
     RPM_TIMER->CR1 |= TIM_CR1_CEN;
 
-#if RPM_COUNTER_N == 2
     HAL_NVIC_EnableIRQ(RPM_TIMER_IRQn);
     HAL_NVIC_SetPriority(RPM_COUNTER_IRQn, 1, 1);
-#endif
 
 //    RPM_COUNTER->SMCR = TIM_SMCR_SMS_0|TIM_SMCR_SMS_1|TIM_SMCR_SMS_2|TIM_SMCR_ETF_2|TIM_SMCR_ETF_3|TIM_SMCR_TS_0|TIM_SMCR_TS_1|TIM_SMCR_TS_2;
     RPM_COUNTER_CLOCK_ENA();
@@ -1922,7 +2093,7 @@ static bool driver_setup (settings_t *settings)
 
     GPIO_Init.Mode = GPIO_MODE_AF_PP;
     GPIO_Init.Pin = SPINDLE_PULSE_BIT;
-    GPIO_Init.Pull = GPIO_NOPULL;
+    GPIO_Init.Pull = GPIO_PULLUP;
     GPIO_Init.Speed = GPIO_SPEED_FREQ_LOW;
 #if RPM_COUNTER_N == 2
     GPIO_Init.Alternate = GPIO_AF1_TIM2;
@@ -1945,7 +2116,7 @@ static bool driver_setup (settings_t *settings)
 
     IOInitDone = settings->version == 22;
 
-    hal.settings_changed(settings);
+    hal.settings_changed(settings, (settings_changed_flags_t){0});
 
 #if PPI_ENABLE
     ppi_init();
@@ -1953,6 +2124,11 @@ static bool driver_setup (settings_t *settings)
 
 #if ETHERNET_ENABLE
     enet_start();
+#endif
+
+#if QEI_ENABLE
+    if(qei_enable)
+        encoder_start(&qei.encoder);
 #endif
 
     return IOInitDone;
@@ -2065,6 +2241,11 @@ bool driver_init (void)
 
 #endif
 
+    uint32_t latency;
+    RCC_ClkInitTypeDef clock_cfg;
+
+    HAL_RCC_GetClockConfig(&clock_cfg, &latency);
+
 #ifdef STM32F446xx
     hal.info = "STM32F446";
 #elif defined(STM32F411xE)
@@ -2074,16 +2255,16 @@ bool driver_init (void)
 #else
     hal.info = "STM32F401CC";
 #endif
-    hal.driver_version = "230125";
+    hal.driver_version = "230414";
     hal.driver_url = GRBL_URL "/STM32F4xx";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
 #ifdef BOARD_URL
-    hal.board = BOARD_URL;
+    hal.board_url = BOARD_URL;
 #endif
     hal.driver_setup = driver_setup;
-    hal.f_step_timer = HAL_RCC_GetPCLK2Freq();
+    hal.f_step_timer = HAL_RCC_GetPCLK1Freq() * TIMER_CLOCK_MUL(clock_cfg.APB1CLKDivider) / STEPPER_TIMER_DIV;
     hal.rx_buffer_size = RX_BUFFER_SIZE;
     hal.delay_ms = &driver_delay;
     hal.settings_changed = settings_changed;
@@ -2154,6 +2335,11 @@ bool driver_init (void)
     hal.nvs.type = NVS_None;
 #endif
 
+#if QEI_ENABLE
+    hal.encoder.reset = qei_reset;
+    hal.encoder.on_event = encoder_event;
+#endif
+
 #ifdef DRIVER_SPINDLE
 
     static const spindle_ptrs_t spindle = {
@@ -2179,9 +2365,9 @@ bool driver_init (void)
     };
 
 #ifdef SPINDLE_PWM_TIMER_N
-    spindle_register(&spindle, "PWM");
+    spindle_id = spindle_register(&spindle, "PWM");
 #else
-    spindle_register(&spindle, "Basic");
+    spindle_id = spindle_register(&spindle, "Basic");
 #endif
 
 #endif // DRIVER_SPINDLE
@@ -2194,6 +2380,7 @@ bool driver_init (void)
 #ifdef SAFETY_DOOR_PIN
     hal.signals_cap.safety_door_ajar = On;
 #endif
+    hal.limits_cap = get_limits_cap();
 
 #if SPINDLE_SYNC_ENABLE
     hal.driver_cap.spindle_sync = On;
@@ -2267,6 +2454,10 @@ bool driver_init (void)
     enet_init();
 #endif
 
+#if QEI_ENABLE
+    qei_enable = encoder_init(QEI_ENABLE);
+#endif
+
 #include "grbl/plugins_init.h"
 
     // No need to move version check before init.
@@ -2318,6 +2509,16 @@ void PULSE_TIMER_IRQHandler (void)
         stepperSetStepOutputs((axes_signals_t){0}); // end step pulse
 }
 
+static inline bool debounce_start (void)
+{
+    if(hal.driver_cap.software_debounce) {
+        DEBOUNCE_TIMER->EGR = TIM_EGR_UG;
+        DEBOUNCE_TIMER->CR1 |= TIM_CR1_CEN; // Start debounce timer (40ms)
+    }
+
+    return hal.driver_cap.software_debounce;
+}
+
 // Debounce timer interrupt handler
 void DEBOUNCE_TIMER_IRQHandler (void)
 {
@@ -2336,6 +2537,15 @@ void DEBOUNCE_TIMER_IRQHandler (void)
         if(state.safety_door_ajar)
             hal.control.interrupt_callback(state);
     }
+    DIGITAL_OUT(COOLANT_FLOOD_PORT, COOLANT_FLOOD_PIN, 0);
+#if QEI_SELECT_ENABLED
+
+    if(debounce.qei_select) {
+        debounce.qei_select = Off;
+        qei_select_handler();
+    }
+
+#endif
 }
 
 #if PPI_ENABLE
@@ -2394,28 +2604,22 @@ void EXTI0_IRQHandler(void)
     if(ifg) {
         __HAL_GPIO_EXTI_CLEAR_IT(ifg);
 #if CONTROL_MASK & (1<<0)
-        hal.control.interrupt_callback(systemGetState());
   #if SAFETY_DOOR_BIT & (1<<0)
-        if(hal.driver_cap.software_debounce) {
-            debounce.door = On;
-            DEBOUNCE_TIMER->EGR = TIM_EGR_UG;
-            DEBOUNCE_TIMER->CR1 |= TIM_CR1_CEN; // Start debounce timer (40ms)
-        } else
+        if(!(debounce.door = debounce_start()))
   #endif
+        hal.control.interrupt_callback(systemGetState());
 #elif defined(I2C_STROBE_ENABLE) && I2C_STROBE_BIT & (1<<0)
         if(i2c_strobe.callback)
             i2c_strobe.callback(0, DIGITAL_IN(I2C_STROBE_PORT, I2C_STROBE_PIN) == 0);
 #elif LIMIT_MASK & (1<<0)
-        if(hal.driver_cap.software_debounce) {
-            debounce.limits = On;
-            DEBOUNCE_TIMER->EGR = TIM_EGR_UG;
-            DEBOUNCE_TIMER->CR1 |= TIM_CR1_CEN; // Start debounce timer (40ms)
-        } else
+        if(!(debounce.limits = debounce_start()))
             hal.limits.interrupt_callback(limitsGetState());
 #elif AUXINPUT_MASK & (1<<0)
         ioports_event(ifg);
+#elif QEI_SELECT_ENABLED && (QEI_SELECT_BIT & (1<<0))
+        if(!(debounce.qei_select = debounce_start()))
+            qei_select_handler();
 #endif
-
     }
 }
 
@@ -2431,22 +2635,17 @@ void EXTI1_IRQHandler(void)
         __HAL_GPIO_EXTI_CLEAR_IT(ifg);
 #if CONTROL_MASK & (1<<1)
   #if SAFETY_DOOR_BIT & (1<<1)
-        if(hal.driver_cap.software_debounce) {
-            debounce.door = On;
-            DEBOUNCE_TIMER->EGR = TIM_EGR_UG;
-            DEBOUNCE_TIMER->CR1 |= TIM_CR1_CEN; // Start debounce timer (40ms)
-        } else
+        if(!(debounce.door = debounce_start()))
   #endif
         hal.control.interrupt_callback(systemGetState());
 #elif LIMIT_MASK & (1<<1)
-        if(hal.driver_cap.software_debounce) {
-            debounce.limits = On;
-            DEBOUNCE_TIMER->EGR = TIM_EGR_UG;
-            DEBOUNCE_TIMER->CR1 |= TIM_CR1_CEN; // Start debounce timer (40ms)
-        } else
+        if(!(debounce.limits = debounce_start()))
             hal.limits.interrupt_callback(limitsGetState());
 #elif AUXINPUT_MASK & (1<<1)
         ioports_event(ifg);
+#elif QEI_SELECT_ENABLED && (QEI_SELECT_BIT & (1<<1))
+        if(!(debounce.qei_select = debounce_start()))
+            qei_select_handler();
 #endif
     }
 }
@@ -2463,11 +2662,7 @@ void EXTI2_IRQHandler(void)
         __HAL_GPIO_EXTI_CLEAR_IT(ifg);
 #if CONTROL_MASK & (1<<2)
   #if SAFETY_DOOR_BIT & (1<<2)
-        if(hal.driver_cap.software_debounce) {
-            debounce.door = On;
-            DEBOUNCE_TIMER->EGR = TIM_EGR_UG;
-            DEBOUNCE_TIMER->CR1 |= TIM_CR1_CEN; // Start debounce timer (40ms)
-        } else
+        if(!(debounce.door = debounce_start()))
  #endif
         hal.control.interrupt_callback(systemGetState());
 #elif LIMIT_MASK & (1<<2)
@@ -2495,30 +2690,23 @@ void EXTI3_IRQHandler(void)
         __HAL_GPIO_EXTI_CLEAR_IT(ifg);
 #if CONTROL_MASK & (1<<3)
   #if SAFETY_DOOR_BIT & (1<<3)
-        if(hal.driver_cap.software_debounce) {
-            debounce.door = On;
-            DEBOUNCE_TIMER->EGR = TIM_EGR_UG;
-            DEBOUNCE_TIMER->CR1 |= TIM_CR1_CEN; // Start debounce timer (40ms)
-        } else
+        if(!(debounce.door = debounce_start()))
   #endif
-          hal.control.interrupt_callback(systemGetState());
+        hal.control.interrupt_callback(systemGetState());
 #elif LIMIT_MASK & (1<<3)
-        if(hal.driver_cap.software_debounce) {
-            debounce.limits = On;
-            DEBOUNCE_TIMER->EGR = TIM_EGR_UG;
-            DEBOUNCE_TIMER->CR1 |= TIM_CR1_CEN; // Start debounce timer (40ms)
-        } else
+        if(!(debounce.limits = debounce_start()))
             hal.limits.interrupt_callback(limitsGetState());
 #elif AUXINPUT_MASK & (1<<3)
         ioports_event(ifg);
 #elif SPINDLE_INDEX_PIN == 3
         if(ifg & SPINDLE_INDEX_BIT) {
+            uint32_t rpm_count = RPM_COUNTER->CNT;
+            spindle_encoder.timer.last_index = RPM_TIMER_COUNT;
 
-            if(spindle_encoder.counter.index_count && (uint16_t)(RPM_COUNTER->CNT - (uint16_t)spindle_encoder.counter.last_index) != spindle_encoder.ppr)
+            if(spindle_encoder.counter.index_count && (uint16_t)(rpm_count - (uint16_t)spindle_encoder.counter.last_index) != spindle_encoder.ppr)
                 spindle_encoder.error_count++;
 
-            spindle_encoder.counter.last_index = RPM_COUNTER->CNT;
-            spindle_encoder.timer.last_index = RPM_TIMER_COUNT;
+            spindle_encoder.counter.last_index = rpm_count;
             spindle_encoder.counter.index_count++;
         }
 #endif
@@ -2537,19 +2725,11 @@ void EXTI4_IRQHandler(void)
         __HAL_GPIO_EXTI_CLEAR_IT(ifg);
 #if CONTROL_MASK & (1<<4)
   #if SAFETY_DOOR_BIT & (1<<4)
-        if(hal.driver_cap.software_debounce) {
-            debounce.door = On;
-            DEBOUNCE_TIMER->EGR = TIM_EGR_UG;
-            DEBOUNCE_TIMER->CR1 |= TIM_CR1_CEN; // Start debounce timer (40ms)
-        } else
+        if(!(debounce.door = debounce_start()))
   #endif
         hal.control.interrupt_callback(systemGetState());
 #elif LIMIT_MASK & (1<<4)
-        if(hal.driver_cap.software_debounce) {
-            debounce.limits = On;
-            DEBOUNCE_TIMER->EGR = TIM_EGR_UG;
-            DEBOUNCE_TIMER->CR1 |= TIM_CR1_CEN; // Start debounce timer (40ms)
-        } else
+        if(!(debounce.limits = debounce_start()))
             hal.limits.interrupt_callback(limitsGetState());
 #elif AUXINPUT_MASK & (1<<4)
         ioports_event(ifg);
@@ -2571,22 +2751,14 @@ void EXTI9_5_IRQHandler(void)
 #if CONTROL_MASK & 0x03E0
         if(ifg & CONTROL_MASK) {
   #if SAFETY_DOOR_BIT & 0x03E0
-            if((ifg & SAFETY_DOOR_BIT) && hal.driver_cap.software_debounce) {
-                debounce.door = On;
-                DEBOUNCE_TIMER->EGR = TIM_EGR_UG;
-                DEBOUNCE_TIMER->CR1 |= TIM_CR1_CEN; // Start debounce timer (40ms)
-            } else
+            if(!(ifg & SAFETY_DOOR_BIT) || !(debounce.door = debounce_start()))
   #endif
-                hal.control.interrupt_callback(systemGetState());
+            hal.control.interrupt_callback(systemGetState());
         }
 #endif
 #if LIMIT_MASK & 0x03E0
         if(ifg & LIMIT_MASK) {
-            if(hal.driver_cap.software_debounce) {
-                debounce.limits = On;
-                DEBOUNCE_TIMER->EGR = TIM_EGR_UG;
-                DEBOUNCE_TIMER->CR1 |= TIM_CR1_CEN; // Start debounce timer (40ms)
-            } else
+            if(!(debounce.limits = debounce_start()))
                 hal.limits.interrupt_callback(limitsGetState());
         }
 #endif
@@ -2618,34 +2790,33 @@ void EXTI15_10_IRQHandler(void)
 
 #ifdef SPINDLE_INDEX_PORT
         if(ifg & SPINDLE_INDEX_BIT) {
+            uint32_t rpm_count = RPM_COUNTER->CNT;
+            spindle_encoder.timer.last_index = RPM_TIMER_COUNT;
 
-            if(spindle_encoder.counter.index_count && (uint16_t)(RPM_COUNTER->CNT - (uint16_t)spindle_encoder.counter.last_index) != spindle_encoder.ppr)
+            if(spindle_encoder.counter.index_count && (uint16_t)(rpm_count - (uint16_t)spindle_encoder.counter.last_index) != spindle_encoder.ppr)
                 spindle_encoder.error_count++;
 
-            spindle_encoder.counter.last_index = RPM_COUNTER->CNT;
-            spindle_encoder.timer.last_index = RPM_TIMER_COUNT;
+            spindle_encoder.counter.last_index = rpm_count;
             spindle_encoder.counter.index_count++;
         }
+#endif
+#if QEI_ENABLE && ((QEI_A_BIT|QEI_B_BIT) & 0xFC00)
+        if(ifg & (QEI_A_BIT|QEI_B_BIT))
+            qei_update();
 #endif
 #if CONTROL_MASK & 0xFC00
         if(ifg & CONTROL_MASK) {
   #if SAFETY_DOOR_BIT & 0xFC00
-            if((ifg & SAFETY_DOOR_BIT) && hal.driver_cap.software_debounce) {
-                debounce.door = On;
-                DEBOUNCE_TIMER->EGR = TIM_EGR_UG;
-                DEBOUNCE_TIMER->CR1 |= TIM_CR1_CEN; // Start debounce timer (40ms)
-            } else
+            if(!(ifg & SAFETY_DOOR_BIT) || !(debounce.door = debounce_start()))
   #endif
-                hal.control.interrupt_callback(systemGetState());
+            hal.control.interrupt_callback(systemGetState());
         }
 #endif
 #if LIMIT_MASK & 0xFC00
         if(ifg & LIMIT_MASK) {
-            if(hal.driver_cap.software_debounce) {
-                debounce.limits = On;
-                DEBOUNCE_TIMER->EGR = TIM_EGR_UG;
-                DEBOUNCE_TIMER->CR1 |= TIM_CR1_CEN; // Start debounce timer (40ms)
-            } else
+            DIGITAL_OUT(COOLANT_FLOOD_PORT, COOLANT_FLOOD_PIN, 1);
+
+            if(!(debounce.limits = debounce_start()))
                 hal.limits.interrupt_callback(limitsGetState());
         }
 #endif
@@ -2669,9 +2840,27 @@ void EXTI15_10_IRQHandler(void)
 // Interrupt handler for 1 ms interval timer
 void Driver_IncTick (void)
 {
+#if QEI_ENABLE
+      if(qei.vel_timeout && !(--qei.vel_timeout)) {
+          qei.encoder.velocity = abs(qei.count - qei.vel_count) * 1000 / (uwTick - qei.vel_timestamp);
+          qei.vel_timestamp = uwTick;
+          qei.vel_timeout = QEI_VELOCITY_TIMEOUT;
+          if((qei.encoder.event.position_changed = !qei.dbl_click_timeout || qei.encoder.velocity == 0))
+              hal.encoder.on_event(&qei.encoder, qei.count);
+          qei.vel_count = qei.count;
+      }
+
+  #if QEI_SELECT_ENABLED
+      if(qei.dbl_click_timeout && !(--qei.dbl_click_timeout)) {
+          qei.encoder.event.click = On;
+          hal.encoder.on_event(&qei.encoder, qei.count);
+      }
+  #endif
+#endif
+
 #ifdef Z_LIMIT_POLL
     static bool z_limit_state = false;
-    if(settings.limits.flags.hard_enabled) {
+    if(limits_irq_enabled) {
         bool z_limit = DIGITAL_IN(Z_LIMIT_PORT, Z_LIMIT_PIN) ^ settings.limits.invert.z;
         if(z_limit_state != z_limit) {
             if((z_limit_state = z_limit)) {

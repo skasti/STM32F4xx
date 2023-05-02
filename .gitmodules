@@ -33,3 +33,6 @@
 [submodule "rgb"]
 	path = rgb
 	url = https://github.com/Expatria-Technologies/grblhal-rgb-plugin
+[submodule "embroidery"]
+	path = embroidery
+	url = https://github.com/grblHAL/Plugin_embroidery
