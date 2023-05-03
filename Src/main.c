@@ -63,7 +63,7 @@ static void SystemClock_Config(void)
 
 #ifdef STM32F446xx
 
-  #ifdef BOARD_FLEXI_HAL
+  #if defined(BOARD_FLEXI_HAL)
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
     __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
@@ -87,7 +87,7 @@ static void SystemClock_Config(void)
 
     #define FLASH_LATENCY FLASH_LATENCY_5
 
-  #elif NUCLEO_F446
+  #elif defined(NUCLEO_F446)
 
     __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 

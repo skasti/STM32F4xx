@@ -197,10 +197,12 @@ bool i2c_probe (uint_fast16_t i2cAddr)
             return false;
     }
 
+#if 0
 #ifdef I2C_FASTMODE
     return HAL_FMPI2C_IsDeviceReady(&i2c_port, i2cAddr << 1, 4, 10) == HAL_OK;
 #else
     return HAL_I2C_IsDeviceReady(&i2c_port, i2cAddr << 1, 4, 10) == HAL_OK;
+#endif
 #endif
 }
 

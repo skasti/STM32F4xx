@@ -31,6 +31,7 @@
 #include "grbl/protocol.h"
 #include "grbl/settings.h"
 
+#if 0
 static uint8_t keycode = 0;
 static keycode_callback_ptr keypad_callback = NULL;
 static bool pendant_tx_active = 0;
@@ -107,10 +108,14 @@ bool flexi_stream_tx_blocking (void)
     return !(sys.rt_exec_state & EXEC_RESET);
 }
 #endif
+#endif
+#endif
 
 void board_init (void)
 {
-    i2c_port = I2C_GetPort();
+    #if defined(BOARD_FLEXI_HAL) && KEYPAD_ENABLE
+    //i2c_port = I2C_GetPort();
+    #endif
 }
 
-#endif
+
