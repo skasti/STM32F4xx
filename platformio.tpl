@@ -36,6 +36,17 @@ lib_extra_dirs =
   Middlewares/ST/STM32_USB_Device_Library
   USB_DEVICE
 
+[eth_networking]
+build_flags =
+  # Floating point support for printf, required for WebUI v3
+  -Wl,-u,_printf_float
+  -I lwip/src/include
+  -I networking/wiznet
+lib_deps =
+   lwip
+   networking
+lib_extra_dirs =
+
 [env]
 platform = ststm32
 platform_packages = framework-stm32cubef4 @ ~1.26.2
@@ -51,4 +62,5 @@ build_flags = ${common.build_flags}
 %build_flags%
 lib_deps = ${common.lib_deps}
   eeprom
+%lib_deps%
 lib_extra_dirs = ${common.lib_extra_dirs}
