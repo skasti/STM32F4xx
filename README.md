@@ -2,6 +2,13 @@
 
 Optimized build for Flexi-HAL CNC Controller.
 
+Changes for Flexi Support:
+1) Networking plugin
+	lwipopts.h
+		#define MEM_NUM_PBUF 24
+		#define MEM_NUM_TCP_PCB 8
+		#define PBUF_POOL_SIZE 24
+
 A grblHAL driver for the STM32F401xC, STM32F407xx, STM32F411xE and STM32F446xx ARM processors.
 
 Loosely based on code from robomechs [6-AXIS-USBCNC-GRBL](https://github.com/robomechs/6-AXIS-USBCNC-GRBL) port, updated for [STM32CubeIDE](https://www.st.com/en/development-tools/stm32cubeide.htm) and the latest STM HAL drivers where appropriate.
