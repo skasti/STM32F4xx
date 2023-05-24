@@ -31,6 +31,8 @@
 #include "grbl/protocol.h"
 #include "grbl/settings.h"
 
+DMA_HandleTypeDef hdma_spi1_tx;
+
 #if 0
 static uint8_t keycode = 0;
 static keycode_callback_ptr keypad_callback = NULL;
@@ -111,11 +113,26 @@ bool flexi_stream_tx_blocking (void)
 #endif
 #endif
 
+/**
+  * @brief This function handles DMA2 stream3 global interrupt.
+  */
+
+static void MX_DMA_Init (void)
+{
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  HAL_NVIC_SetPriority(DMA2_Stream3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream3_IRQn);
+
+}
+
 void board_init (void)
 {
     #if defined(BOARD_FLEXI_HAL) && KEYPAD_ENABLE
     //i2c_port = I2C_GetPort();
     #endif
+
+    MX_DMA_Init();
 }
 
 

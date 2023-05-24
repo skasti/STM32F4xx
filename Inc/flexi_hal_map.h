@@ -31,6 +31,10 @@
 #error "This board has STM32F446 processor with a 25MHz crystal, select a corresponding build!"
 #endif
 
+#if MPG_ENABLE && ETHERNET_ENABLE
+#error "Networking and MGP Serial mode cannot be enabled together!"
+#endif
+
 #define BOARD_NAME "Flexi-HAL"
 #define BOARD_URL "https://github.com/Expatria-Technologies/Flexi-HAL"
 
@@ -181,8 +185,23 @@
 #define I2C_STROBE_PIN          10
 #endif
 
+#if SDCARD_ENABLE || ETHERNET_ENABLE
+#define SPI_PORT                1 // GPIOB, SCK_PIN = 3, MISO_PIN = 4, MOSI_PIN = 5  probably needs fixing
+#endif
+
+#if ETHERNET_ENABLE
+//CS is JOG_SW
+#undef SPI_ENABLE
+#define SPI_ENABLE 1
+#define SPI_CS_PORT             GPIOA //CS_JOG_SW
+#define SPI_CS_PIN              15
+#define SPI_IRQ_PORT            GPIOC //PRU_RESET
+#define SPI_IRQ_PIN             3
+#define SPI_RST_PORT            GPIOA // TXD_INT
+#define SPI_RST_PIN             9
+#endif
+
 #if SDCARD_ENABLE
 #define SD_CS_PORT              GPIOA
-#define SD_CS_PIN               3
-#define SPI_PORT                1 // GPIOA, SCK_PIN = 5, MISO_PIN = 6, MOSI_PIN = 7
+#define SD_CS_PIN               10
 #endif

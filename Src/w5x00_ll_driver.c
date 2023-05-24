@@ -18,7 +18,11 @@
 #endif
 
 #ifndef WIZCHIP_SPI_PRESCALER
-#define WIZCHIP_SPI_PRESCALER SPI_BAUDRATEPRESCALER_4
+    #ifdef BOARD_FLEXI_HAL
+        #define WIZCHIP_SPI_PRESCALER SPI_BAUDRATEPRESCALER_2
+    #else
+        #define WIZCHIP_SPI_PRESCALER SPI_BAUDRATEPRESCALER_4
+    #endif
 #endif
 
 typedef struct {
@@ -95,6 +99,8 @@ static void add_pin (xbar_t *gpio, void *data)
 
 void wizchip_reset (void)
 {
+    DIGITAL_OUT(hw.rst.port, hw.rst.pin, 1);
+    hal.delay_ms(100, NULL);    
     DIGITAL_OUT(hw.rst.port, hw.rst.pin, 0);
     hal.delay_ms(2, NULL);
     DIGITAL_OUT(hw.rst.port, hw.rst.pin, 1);
