@@ -130,7 +130,6 @@
 #endif
 
 #define STEPPER_TIMER_DIV 4
-#define TIMER_CLOCK_MUL(d) (d == RCC_HCLK_DIV1 ? 1 : 2)
 
 typedef union {
     uint8_t mask;
@@ -444,7 +443,19 @@ static output_signal_t outputpin[] = {
     { .id = Output_Aux6,            .port = AUXOUTPUT6_PORT,        .pin = AUXOUTPUT6_PIN,          .group = PinGroup_AuxOutput },
 #endif
 #ifdef AUXOUTPUT7_PORT
-    { .id = Output_Aux7,            .port = AUXOUTPUT7_PORT,        .pin = AUXOUTPUT7_PIN,          .group = PinGroup_AuxOutput }
+    { .id = Output_Aux7,            .port = AUXOUTPUT7_PORT,        .pin = AUXOUTPUT7_PIN,          .group = PinGroup_AuxOutput },
+#endif
+#ifdef AUXOUTPUT0_PWM_PORT
+    { .id = Output_Analog_Aux0,     .port = AUXOUTPUT0_PWM_PORT,    .pin = AUXOUTPUT0_PWM_PIN,      .group = PinGroup_AuxOutputAnalog, .mode = { PINMODE_PWM } },
+#endif
+#ifdef AUXOUTPUT0_ANALOG_PORT
+    { .id = Output_Analog_Aux0,     .port = AUXOUTPUT0_ANALOG_PORT, .pin = AUXOUTPUT0_ANALOG_PIN,   .group = PinGroup_AuxOutputAnalog },
+#endif
+#ifdef AUXOUTPUT1_PWM_PORT
+    { .id = Output_Analog_Aux1,     .port = AUXOUTPUT1_PWM_PORT,    .pin = AUXOUTPUT1_PWM_PIN,      .group = PinGroup_AuxOutputAnalog, .mode = { PINMODE_PWM } },
+#endif
+#ifdef AUXOUTPUT1_ANALOG_PORT
+    { .id = Output_Analog_Aux1,     .port = AUXOUTPUT1_ANALOG_PORT, .pin = AUXOUTPUT1_ANALOG_PIN,   .group = PinGroup_AuxOutputAnalog }
 #endif
 };
 
@@ -506,8 +517,10 @@ static spindle_encoder_t spindle_encoder = {
 static spindle_sync_t spindle_tracker;
 #if RPM_COUNTER_N == 2
 static volatile uint32_t rpm_timer_ovf = 0;
+#define RPM_TIMER_RESOLUTION 1
 #define RPM_TIMER_COUNT (RPM_TIMER->CNT | (rpm_timer_ovf << 16))
 #else
+#define RPM_TIMER_RESOLUTION 1
 #define RPM_TIMER_COUNT RPM_TIMER->CNT
 #endif
 
@@ -1234,7 +1247,7 @@ static bool spindleConfig (spindle_ptrs_t *spindle)
         return false;
 
     RCC_ClkInitTypeDef clock;
-    uint32_t latency, prescaler = settings.spindle.pwm_freq > 4000.0f ? 1 : (settings.spindle.pwm_freq > 200.0f ? 12 : 25);
+    uint32_t latency, prescaler = 1;
 
     HAL_RCC_GetClockConfig(&clock, &latency);
 
@@ -1243,6 +1256,15 @@ static bool spindleConfig (spindle_ptrs_t *spindle)
 #else
     if((spindle->cap.variable = !settings.spindle.flags.pwm_disable && spindle_precompute_pwm_values(spindle, &spindle_pwm, (HAL_RCC_GetPCLK1Freq() * TIMER_CLOCK_MUL(clock.APB1CLKDivider)) / prescaler))) {
 #endif
+
+        while(spindle_pwm.period > 65534) {
+            prescaler++;
+#if SPINDLE_PWM_TIMER_N == 1
+            spindle_precompute_pwm_values(spindle, &spindle_pwm, (HAL_RCC_GetPCLK2Freq() * TIMER_CLOCK_MUL(clock.APB2CLKDivider)) / prescaler);
+#else
+            spindle_precompute_pwm_values(spindle, &spindle_pwm, (HAL_RCC_GetPCLK1Freq() * TIMER_CLOCK_MUL(clock.APB1CLKDivider)) / prescaler);
+#endif
+        }
 
         spindle->set_state = spindleSetStateVariable;
 
@@ -1538,8 +1560,8 @@ void settings_changed (settings_t *settings, settings_changed_flags_t changed)
             spindle_encoder.ppr = settings->spindle.ppr;
             spindle_encoder.tics_per_irq = max(1, spindle_encoder.ppr / 32);
             spindle_encoder.pulse_distance = 1.0f / spindle_encoder.ppr;
-            spindle_encoder.maximum_tt = (uint32_t)(2.0f / timer_resolution) / spindle_encoder.tics_per_irq;
-            spindle_encoder.rpm_factor = 60.0f / ((timer_resolution * (float)spindle_encoder.ppr));
+            spindle_encoder.maximum_tt = 250000UL / RPM_TIMER_RESOLUTION; // 250ms
+            spindle_encoder.rpm_factor = (60.0f * 1000000.0f / RPM_TIMER_RESOLUTION) / (float)spindle_encoder.ppr;
             spindleDataReset();
         }
 
@@ -1999,7 +2021,7 @@ static bool driver_setup (settings_t *settings)
     hal.delay_ms(100, NULL);
 
     for(i = 0 ; i < sizeof(outputpin) / sizeof(output_signal_t); i++) {
-        if(outputpin[i].group != PinGroup_StepperPower) {
+        if(!(outputpin[i].group == PinGroup_StepperPower || outputpin[i].group == PinGroup_AuxOutputAnalog)) {
             GPIO_Init.Pin = 1 << outputpin[i].pin;
             GPIO_Init.Mode = outputpin[i].mode.open_drain ? GPIO_MODE_OUTPUT_OD : GPIO_MODE_OUTPUT_PP;
             HAL_GPIO_Init(outputpin[i].port, &GPIO_Init);
@@ -2105,15 +2127,15 @@ static bool driver_setup (settings_t *settings)
     RPM_TIMER_CLOCK_ENA();
     RPM_TIMER->CR1 = TIM_CR1_CKD_1|TIM_CR1_URS;
 #if timerAPB2(RPM_TIMER_N)
-    RPM_TIMER->PSC = HAL_RCC_GetPCLK2Freq() * TIMER_CLOCK_MUL(clock_cfg.APB2CLKDivider) / 1000000UL - 1;
+    RPM_TIMER->PSC = HAL_RCC_GetPCLK2Freq() * TIMER_CLOCK_MUL(clock_cfg.APB2CLKDivider) / 1000000UL * RPM_TIMER_RESOLUTION - 1;
 #else
-    RPM_TIMER->PSC = HAL_RCC_GetPCLK1Freq() * TIMER_CLOCK_MUL(clock_cfg.APB1CLKDivider) / 1000000UL - 1;
+    RPM_TIMER->PSC = HAL_RCC_GetPCLK1Freq() * TIMER_CLOCK_MUL(clock_cfg.APB1CLKDivider) / 1000000UL * RPM_TIMER_RESOLUTION - 1;
 #endif
     RPM_TIMER->DIER |= TIM_DIER_UIE;
     RPM_TIMER->CR1 |= TIM_CR1_CEN;
 
     HAL_NVIC_EnableIRQ(RPM_TIMER_IRQn);
-    HAL_NVIC_SetPriority(RPM_COUNTER_IRQn, 1, 1);
+    HAL_NVIC_SetPriority(RPM_COUNTER_IRQn, 0, 0);
 
 //    RPM_COUNTER->SMCR = TIM_SMCR_SMS_0|TIM_SMCR_SMS_1|TIM_SMCR_SMS_2|TIM_SMCR_ETF_2|TIM_SMCR_ETF_3|TIM_SMCR_TS_0|TIM_SMCR_TS_1|TIM_SMCR_TS_2;
     RPM_COUNTER_CLOCK_ENA();
@@ -2288,7 +2310,7 @@ bool driver_init (void)
 #else
     hal.info = "STM32F401CC";
 #endif
-    hal.driver_version = "230513";
+    hal.driver_version = "230602";
     hal.driver_url = GRBL_URL "/STM32F4xx";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -2432,14 +2454,14 @@ bool driver_init (void)
 
     uint32_t i;
     input_signal_t *input;
-    static pin_group_pins_t aux_inputs = {0}, aux_outputs = {0};
+    static pin_group_pins_t aux_digital_in = {0}, aux_digital_out = {0}, aux_analog_out = {0};
 
     for(i = 0 ; i < sizeof(inputpin) / sizeof(input_signal_t); i++) {
         input = &inputpin[i];
         if(input->group == PinGroup_AuxInput) {
-            if(aux_inputs.pins.inputs == NULL)
-                aux_inputs.pins.inputs = input;
-            input->id = (pin_function_t)(Input_Aux0 + aux_inputs.n_pins++);
+            if(aux_digital_in.pins.inputs == NULL)
+                aux_digital_in.pins.inputs = input;
+            input->id = (pin_function_t)(Input_Aux0 + aux_digital_in.n_pins++);
             input->bit = 1 << input->pin;
             input->cap.pull_mode = PullMode_UpDown;
             input->cap.irq_mode = (DRIVER_IRQMASK & input->bit) ? IRQ_Mode_None : IRQ_Mode_Edges;
@@ -2450,14 +2472,23 @@ bool driver_init (void)
     for(i = 0 ; i < sizeof(outputpin) / sizeof(output_signal_t); i++) {
         output = &outputpin[i];
         if(output->group == PinGroup_AuxOutput) {
-            if(aux_outputs.pins.outputs == NULL)
-                aux_outputs.pins.outputs = output;
-            output->id = (pin_function_t)(Output_Aux0 + aux_outputs.n_pins++);
+            if(aux_digital_out.pins.outputs == NULL)
+                aux_digital_out.pins.outputs = output;
+            output->id = (pin_function_t)(Output_Aux0 + aux_digital_out.n_pins++);
+        } else if(output->group == PinGroup_AuxOutputAnalog) {
+            if(aux_analog_out.pins.outputs == NULL)
+                aux_analog_out.pins.outputs = output;
+            output->id = (pin_function_t)(Output_Analog_Aux0 + aux_analog_out.n_pins++);
         }
     }
 
 #ifdef HAS_IOPORTS
-    ioports_init(&aux_inputs, &aux_outputs);
+    if(aux_digital_in.n_pins || aux_digital_out.n_pins)
+        ioports_init(&aux_digital_in, &aux_digital_out);
+  #if AUX_ANALOG
+    if(aux_analog_out.n_pins)
+        ioports_init_analog(NULL, &aux_analog_out);
+  #endif
 #endif
 
 #ifdef HAS_BOARD_INIT
