@@ -153,6 +153,18 @@
 #define AUXOUTPUT2_PIN          4
 #define AUXOUTPUT3_PORT         GPIOA
 #define AUXOUTPUT3_PIN          6
+#if N_ABC_MOTORS != 2
+  #define AUXOUTPUT4_PORT       GPIOB
+  #define AUXOUTPUT4_PIN        14
+  #define AUXOUTPUT5_PORT       GPIOB
+  #define AUXOUTPUT5_PIN        15  
+#endif
+#if N_ABC_MOTORS < 1
+  #define AUXOUTPUT4_PORT       GPIOD
+  #define AUXOUTPUT4_PIN        2
+  #define AUXOUTPUT5_PORT       GPIOC
+  #define AUXOUTPUT5_PIN        12
+#endif
 #define AUXOUTPUT_OUTMODE       GPIO_BITBAND
 
 #define AUXINPUT0_PORT          GPIOA
@@ -171,12 +183,15 @@
 #define CYCLE_START_PORT        GPIOC
 #define CYCLE_START_PIN         11
 #if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PORT        GPIOC
-#define SAFETY_DOOR_PIN         4
+  #define SAFETY_DOOR_PORT        GPIOC
+  #define SAFETY_DOOR_PIN         4
+#else
+  #define AUXINPUT3_PORT          GPIOC
+  #define AUXINPUT3_PIN           4
 #endif
 #define CONTROL_INMODE          GPIO_BITBAND
 
-// Define probe switch input pin.
+// Define probe input pin.
 #define PROBE_PORT              GPIOB
 #define PROBE_PIN               7
 
