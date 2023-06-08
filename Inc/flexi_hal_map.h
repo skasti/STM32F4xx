@@ -35,7 +35,9 @@
 #error "Networking and MGP Serial mode cannot be enabled together!"
 #endif
 
+#ifndef BOARD_NAME
 #define BOARD_NAME "Flexi-HAL"
+#endif
 #define BOARD_URL "https://github.com/Expatria-Technologies/Flexi-HAL"
 
 #undef I2C_ENABLE
