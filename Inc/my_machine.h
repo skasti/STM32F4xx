@@ -115,7 +115,7 @@
 #define SSDP_ENABLE         0 // SSDP daemon - requires HTTP enabled.
 //#define MQTT_ENABLE         1 // MQTT client API, only enable if needed by plugin code.
 #if SDCARD_ENABLE  || WEBUI_ENABLE
-//#define FTP_ENABLE         1 // Ftp daemon - requires SD card enabled.
+#define FTP_ENABLE         1 // Ftp daemon - requires SD card enabled.
 //#define HTTP_ENABLE         1 // http daemon - requires SD card enabled.
 //#define WEBDAV_ENABLE       1 // webdav protocol - requires http daemon and SD card enabled.
 #endif
