@@ -176,6 +176,11 @@
 #define AUXINPUT2_PORT          GPIOA
 #define AUXINPUT2_PIN           2
 
+#if N_ABC_MOTORS != 2
+  #define AUXINPUT3_PORT          GPIOC
+  #define AUXINPUT3_PIN           14
+#endif
+
 
 // Define user-control controls (cycle start, reset, feed hold) input pins.
 #define RESET_PORT              GPIOB
@@ -188,8 +193,8 @@
   #define SAFETY_DOOR_PORT        GPIOC
   #define SAFETY_DOOR_PIN         4
 #else
-  #define AUXINPUT3_PORT          GPIOC
-  #define AUXINPUT3_PIN           4
+  #define AUXINPUT4_PORT          GPIOC
+  #define AUXINPUT4_PIN           4
 #endif
 #define CONTROL_INMODE          GPIO_BITBAND
 

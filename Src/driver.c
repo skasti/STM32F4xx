@@ -491,7 +491,7 @@ static bool irq_claim (irq_type_t irq, uint_fast8_t id, irq_callback_ptr handler
 #endif
 
 #ifdef SPI_IRQ_PIN
-    if((ok = irq == IRQ_SPI && spi_irq.callback == NULL))
+    else if((ok = irq == IRQ_SPI && spi_irq.callback == NULL))
         spi_irq.callback = handler;
 #endif
 
