@@ -533,10 +533,6 @@
 #endif
 
 #if MODBUS_ENABLE
-#include "spindle/modbus.h"
-#endif
-
-#if MODBUS_ENABLE
 #define MODBUS_TEST 1
 #else
 #define MODBUS_TEST 0
@@ -602,8 +598,13 @@
 #error I2C strobe not supported!
 #endif
 
-#if SDCARD_ENABLE && !defined(SD_CS_PORT)
+#if SDCARD_ENABLE
+#ifndef SDCARD_SDIO
+#define SDCARD_SDIO 0
+#endif
+#if !SDCARD_SDIO && !defined(SD_CS_PORT)
 #error SD card plugin not supported!
+#endif
 #endif
 
 #if I2C_ENABLE && !defined(I2C_PORT)
@@ -659,6 +660,7 @@ typedef struct {
 
 bool driver_init (void);
 void Driver_IncTick (void);
+void gpio_irq_enable (const input_signal_t *input, pin_irq_mode_t irq_mode);
 #ifdef HAS_BOARD_INIT
 void board_init (void);
 #endif
