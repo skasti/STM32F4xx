@@ -156,10 +156,10 @@
 #define AUXOUTPUT3_PORT         GPIOA
 #define AUXOUTPUT3_PIN          6
 #if N_ABC_MOTORS != 2
-  #define AUXOUTPUT4_PORT       GPIOB
-  #define AUXOUTPUT4_PIN        14
-  #define AUXOUTPUT5_PORT       GPIOB
-  #define AUXOUTPUT5_PIN        15  
+  #define AUXOUTPUT6_PORT       GPIOB
+  #define AUXOUTPUT6_PIN        14
+  #define AUXOUTPUT7_PORT       GPIOB
+  #define AUXOUTPUT7_PIN        15  
 #endif
 #if N_ABC_MOTORS < 1
   #define AUXOUTPUT4_PORT       GPIOD
