@@ -448,7 +448,7 @@ static input_signal_t *probe_input;
 static driver_irq_handler_t i2c_strobe = { .type = IRQ_I2C_Strobe };
 #endif
 
-#if SPI_IRQ_BIT
+#ifdef SPI_IRQ_BIT
 static driver_irq_handler_t spi_irq = { .type = IRQ_SPI };
 #endif
 
