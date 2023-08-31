@@ -116,8 +116,8 @@
 //#define MQTT_ENABLE         1 // MQTT client API, only enable if needed by plugin code.
 #if SDCARD_ENABLE  || WEBUI_ENABLE
 #define FTP_ENABLE         1 // Ftp daemon - requires SD card enabled.
-//#define HTTP_ENABLE         1 // http daemon - requires SD card enabled.
-//#define WEBDAV_ENABLE       1 // webdav protocol - requires http daemon and SD card enabled.
+#define HTTP_ENABLE         1 // http daemon - requires SD card enabled.
+#define WEBDAV_ENABLE       1 // webdav protocol - requires http daemon and SD card enabled.
 #endif
 
 // The following symbols have the default values as shown, uncomment and change as needed.
@@ -128,9 +128,9 @@
 #define NETWORK_MASK            "255.255.255.0"
 //#define NETWORK_FTP_PORT        21
 //#define NETWORK_TELNET_PORT     23
-//#define NETWORK_HTTP_PORT       80
+#define NETWORK_HTTP_PORT       80
 #if HTTP_ENABLE
-//#define NETWORK_WEBSOCKET_PORT  81
+#define NETWORK_WEBSOCKET_PORT  81
 #else
 #define NETWORK_WEBSOCKET_PORT  80
 #endif
