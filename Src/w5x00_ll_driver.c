@@ -37,7 +37,7 @@ static volatile bool spin_lock = false;
 
 static void wizchip_select (void)
 {
-    if(prescaler != WIZCHIP_SPI_PRESCALER)
+    //if(prescaler != WIZCHIP_SPI_PRESCALER)
         prescaler = spi_set_speed(WIZCHIP_SPI_PRESCALER);
 
     DIGITAL_OUT(hw.cs.port, hw.cs.pin, 0);
@@ -47,7 +47,7 @@ static void wizchip_deselect (void)
 {
     DIGITAL_OUT(hw.cs.port, hw.cs.pin, 1);
 
-    if(prescaler != WIZCHIP_SPI_PRESCALER)
+    //if(prescaler != WIZCHIP_SPI_PRESCALER)
         spi_set_speed(prescaler);
 }
 
