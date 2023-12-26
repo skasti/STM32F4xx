@@ -47,7 +47,7 @@ static void wizchip_deselect (void)
 {
     DIGITAL_OUT(hw.cs.port, hw.cs.pin, 1);
 
-    //if(prescaler != WIZCHIP_SPI_PRESCALER)
+    if(prescaler != WIZCHIP_SPI_PRESCALER)
         spi_set_speed(prescaler);
 }
 
