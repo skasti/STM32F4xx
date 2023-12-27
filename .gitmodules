@@ -47,4 +47,4 @@
 	url = https://github.com/grblHAL/Plugin_encoder
 [submodule "probe_plugin"]
 	path = probe_plugin
-	url = git@github.com:Expatria-Technologies/grblhal_probe_plugin.git
+	url = https://github.com/Expatria-Technologies/grblhal_probe_plugin
