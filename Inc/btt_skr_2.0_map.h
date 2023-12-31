@@ -23,7 +23,9 @@
 #error "BTT SKR-2 supports 5 motors max."
 #endif
 
-#if !(defined(STM32F407xx) || defined(STM32F429xx)) || HSE_VALUE != 8000000
+#if IS_NUCLEO_DEVKIT
+// When debugging with Nucleo-144
+#elif !(defined(STM32F407xx) || defined(STM32F429xx)) || HSE_VALUE != 8000000
 #error "This board has a STM32F407 or STM32F429 processor with a 8MHz crystal, select a corresponding build!"
 #endif
 
@@ -31,10 +33,11 @@
 #define BOARD_URL "https://github.com/bigtreetech/SKR-2"
 #define HAS_BOARD_INIT
 
-#define I2C_PORT    1       // GPIOB, SCL_PIN = 8, SDA_PIN = 9
-//#define I2C1_ALT_PINMAP // GPIOB, SCL_PIN = 6, SDA_PIN = 7
+#define SERIAL_PORT     1   // GPIOA: TX = 9, RX = 10
+#define SERIAL1_PORT   32   // GPIOD: TX = 8, RX = 9
+#define I2C_PORT        1   // GPIOB: SCL = 8, SDA = 9
 #if ETHERNET_ENABLE
-#define SPI_PORT    2       // GPIOB, SCK_PIN = 13, MISO_PIN = 14, MOSI_PIN = 15
+#define SPI_PORT        2   // GPIOB, SCK_PIN = 13, MISO_PIN = 14, MOSI_PIN = 15
 #endif
 
 #if TRINAMIC_SPI_ENABLE && ETHERNET_ENABLE
@@ -113,18 +116,34 @@
 #define M4_ENABLE_PIN               13
 #endif
 
-  // Define spindle enable and spindle direction output pins.
-#define SPINDLE_ENABLE_PORT         GPIOB
-#define SPINDLE_ENABLE_PIN          6                           // FAN1
-#define SPINDLE_DIRECTION_PORT      GPIOB
-#define SPINDLE_DIRECTION_PIN       5                           // FAN2
+// Define driver spindle pins
 
-// Define spindle PWM output pin.
+#if DRIVER_SPINDLE_PWM_ENABLE                                   // EXP1 - PB0, pin 2
 #define SPINDLE_PWM_PORT_BASE       GPIOB_BASE
-#define SPINDLE_PWM_PIN             0                           // EXP1 - PB0, pin 9
-// Alt. spindle output, comment out definitions above and uncomment these to change:
+#define SPINDLE_PWM_PIN             0
+// Alt. spindle PWM output, comment out definitions above and uncomment these to change:
 //#define SPINDLE_PWM_PORT_BASE       GPIOE_BASE
 //#define SPINDLE_PWM_PIN             5                         // SERVOS - PE5, pin 1
+#else
+#define AUXOUTPUT0_PORT             GPIOB
+#define AUXOUTPUT0_PIN              0
+#endif
+
+#if DRIVER_SPINDLE_DIR_ENABLE                                   // FAN2
+#define SPINDLE_DIRECTION_PORT      GPIOB
+#define SPINDLE_DIRECTION_PIN       5
+#else
+#define AUXOUTPUT1_PORT             GPIOB
+#define AUXOUTPUT1_PIN              5
+#endif
+
+#if DRIVER_SPINDLE_ENABLE                                       // FAN1
+#define SPINDLE_ENABLE_PORT         GPIOB
+#define SPINDLE_ENABLE_PIN          6
+#else
+#define AUXOUTPUT2_PORT             GPIOB
+#define AUXOUTPUT2_PIN              6
+#endif
 
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PORT          GPIOB
@@ -138,12 +157,20 @@
 #define RESET_PIN                   4                           // Exp2-4
 #define FEED_HOLD_PIN               5                           // Exp2-2
 #define CYCLE_START_PIN             6                           // Exp2-1
+#define CONTROL_INMODE              GPIO_BITBAND
+
+#define AUXINPUT0_PORT              GPIOA
+#define AUXINPUT0_PIN               7                           // EXP2-6
 
 #if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PORT            GPIOA
-#define SAFETY_DOOR_PIN             7                           // EXP2-6
+#define SAFETY_DOOR_PORT            AUXINPUT0_PORT
+#define SAFETY_DOOR_PIN             AUXINPUT0_PIN
 #endif
-#define CONTROL_INMODE              GPIO_BITBAND
+
+#if MOTOR_FAULT_ENABLE
+#define MOTOR_FAULT_PORT            AUXINPUT0_PORT
+#define MOTOR_FAULT_PIN             AUXINPUT0_PIN
+#endif
 
 // Define probe switch input pin.
 #define PROBE_PORT                  GPIOE
@@ -163,9 +190,9 @@
 #define SPI_CS_PORT                 GPIOB
 #define SPI_CS_PIN                  12                              // ESP-CS
 #define SPI_IRQ_PORT                GPIOB
-#define SPI_IRQ_PIN                 10                              // ESP-IO0
-#define SPI_RST_PORT                GPIOB
-#define SPI_RST_PIN                 11                              // ESP-IO1
+#define SPI_IRQ_PIN                 11                              // ESP-IO4
+#define SPI_RST_PORT                GPIOC
+#define SPI_RST_PIN                 14                              // ESP-RST
 #endif
 
 #if TRINAMIC_UART_ENABLE

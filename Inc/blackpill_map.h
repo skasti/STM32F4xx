@@ -19,23 +19,30 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/* Default Pin Assignments:
- * A0  X Step       | B0  Step En/Dis       | C0  (N/A)
- * A1  X Direction  | B1  Spindle Enable    | C1  (N/A)
- * A2  Y Step       | B2  Spindle Direction | C2  (N/A)
- * A3  Y Direction  | B3                    | C3  (N/A)
- * A4  Z Step       | B4                    | C4  (N/A)
- * A5  Z Direction  | B5                    | C5  (N/A)
- * A6  A Step       | B6  Reset             | C6  (N/A)
- * A7  A Direction  | B7  Feed Hold         | C7  (N/A)
- * A8  Spindle PWM  | B8  Cycle Start       | C8  (N/A)
- * A9  Y2 Step      | B9  Door Safety       | C9  (N/A)
- * A10 Y2 Direction | B10 Y2 Limit          | C10 (N/A)
- * A11 USB D-       | B11                   | C11 (N/A)
- * A12 USB D+       | B12 X Limit           | C12 (N/A)
- * A13              | B13 Y Limit           | C13
- * A14              | B14 Z Limit           | C14 Coolant Flood
- * A15              | B15 Probe             | C15 coolant Mist
+/* Pin Assignments:
+ *
+ *                               -----------
+ *                           VB |           | +3V
+ *                          C13 |           | GND
+ *           Coolant Flood  C14 |           | +5V
+ *            Coolant Mist  C15 | *     - * | B9   Safety door / Aux In 0
+ *                          RST |      |K|  | B8   Cycle Start
+ *                  X Step   A0 |       -   | B7   Feed Hold
+ *             X Direction   A1 |           | B6   Reset/EStop
+ *                  Y Step   A2 |           | B5
+ *             Y Direction   A3 |    / \    | B4   Coolant Mist
+ *                  Z Step   A4 |   <MCU>   | B3   Spindle Index
+ *             Z Direction   A5 |    \ /    | A15  Spindle Pulse
+ *    Aux In 0/1 / M3 Step   A6 |           | A12  USB D+
+ * Aux In 1 / M3 Direction   A7 |   -   -   | A11  USB D-
+ *          Steppers enable  B0 |  |R| |B|  | A10  M4 Direction
+ *          Spindle Enable   B1 |   -   -   | A9   M4 Step
+ *       Spindle Direction   B2 |           | A8   Spindle PWM
+ *                M4 Limit  B10 |           | B15  Probe / M3 Limit
+ *                          +3V |   -----   | B14  Z Limit
+ *                          GND |  |     |  | B13  Y Limit
+ *                          +5V |  | USB |  | B12  X Limit
+ *                               -----------
  */
 
 #if N_ABC_MOTORS > 1
@@ -43,8 +50,6 @@
 #endif
 
 #define BOARD_NAME "BlackPill"
-//#undef SPINDLE_SYNC_ENABLE
-//#define SPINDLE_SYNC_ENABLE 1
 
 // Define step pulse output pins.
 #define STEP_PORT               GPIOA
@@ -84,15 +89,31 @@
 #endif
 #endif
 
-  // Define spindle enable and spindle direction output pins.
-#define SPINDLE_ENABLE_PORT     GPIOB
-#define SPINDLE_ENABLE_PIN      1
-#define SPINDLE_DIRECTION_PORT  GPIOB
-#define SPINDLE_DIRECTION_PIN   2
+// Define driver spindle pins
 
-// Define spindle PWM output pin.
+#if DRIVER_SPINDLE_PWM_ENABLE
 #define SPINDLE_PWM_PORT_BASE   GPIOA_BASE
 #define SPINDLE_PWM_PIN         8
+#else
+#define AUXOUTPUT2_PORT         GPIOA
+#define AUXOUTPUT2_PIN          8
+#endif
+
+#if DRIVER_SPINDLE_DIR_ENABLE
+#define SPINDLE_DIRECTION_PORT  GPIOB
+#define SPINDLE_DIRECTION_PIN   2
+#else
+#define AUXOUTPUT3_PORT         GPIOB
+#define AUXOUTPUT3_PIN          2
+#endif
+
+#if DRIVER_SPINDLE_ENABLE
+#define SPINDLE_ENABLE_PORT     GPIOB
+#define SPINDLE_ENABLE_PIN      1
+#else
+#define AUXOUTPUT4_PORT         GPIOB
+#define AUXOUTPUT4_PIN          1
+#endif
 
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PORT      GPIOC
@@ -105,9 +126,6 @@
 #define RESET_PIN               6
 #define FEED_HOLD_PIN           7
 #define CYCLE_START_PIN         8
-#if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN         9
-#endif
 #define CONTROL_INMODE          GPIO_SHIFT6
 
 // Define probe switch input pin.
@@ -117,7 +135,7 @@
 #endif
 
 // Spindle encoder pins.
-#if SPINDLE_SYNC_ENABLE
+#if SPINDLE_ENCODER_ENABLE
 
 #define RPM_COUNTER_N           2
 #define RPM_TIMER_N             3
@@ -128,19 +146,24 @@
 
 #endif
 
-#if N_ABC_MOTORS == 0
-#define HAS_IOPORTS
-#if !SAFETY_DOOR_ENABLE
 #define AUXINPUT0_PORT          GPIOB
 #define AUXINPUT0_PIN           9
-#define AUXOUTPUT1_PORT         GPIOA
-#define AUXOUTPUT1_PIN          6
-#else
-#define AUXINPUT0_PORT          GPIOA
-#define AUXINPUT0_PIN           6
-#endif
+
+#if N_ABC_MOTORS == 0
 #define AUXOUTPUT0_PORT         GPIOA
 #define AUXOUTPUT0_PIN          7
+#define AUXOUTPUT1_PORT         GPIOA
+#define AUXOUTPUT1_PIN          6
+#endif
+
+#if SAFETY_DOOR_ENABLE
+#define SAFETY_DOOR_PORT        AUXINPUT0_PORT
+#define SAFETY_DOOR_PIN         AUXINPUT0_PIN
+#endif
+
+#if MOTOR_FAULT_ENABLE
+#define MOTOR_FAULT_PORT        AUXINPUT0_PORT
+#define MOTOR_FAULT_PIN         AUXINPUT0_PIN
 #endif
 
 // NOT SUPPORTED

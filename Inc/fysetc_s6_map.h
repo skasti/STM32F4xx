@@ -31,9 +31,10 @@
 #undef I2C_ENABLE
 #undef EEPROM_ENABLE
 
-#define I2C_ENABLE 1
-#define I2C_PORT 1 // PB8 / PB9
-#define EEPROM_ENABLE 16 // 2K single byte addressing
+#define SERIAL_PORT     1   // GPIOA: TX = 9, RX = 10
+#define I2C_ENABLE      1
+#define I2C_PORT        1   // GPIOB: SCL = 8, SDA = 9
+#define EEPROM_ENABLE   16  // 2K single byte addressing
 
 #if TRINAMIC_ENABLE
 #define HAS_BOARD_INIT
@@ -116,15 +117,31 @@
 #define M5_ENABLE_PIN               3
 #endif
 
-  // Define spindle enable and spindle direction output pins.
-#define SPINDLE_ENABLE_PORT         GPIOB
-#define SPINDLE_ENABLE_PIN          1                           // FAN1
-#define SPINDLE_DIRECTION_PORT      GPIOB
-#define SPINDLE_DIRECTION_PIN       2                           // FAN2
+// Define driver spindle pins
 
-// Define spindle PWM output pin.
+#if DRIVER_SPINDLE_PWM_ENABLE                                   // FAN0
 #define SPINDLE_PWM_PORT_BASE       GPIOB_BASE
-#define SPINDLE_PWM_PIN             0                           // FAN0
+#define SPINDLE_PWM_PIN             0
+#else
+#define AUXOUTPUT0_PORT             GPIOB
+#define AUXOUTPUT0_PIN              0
+#endif
+
+#if DRIVER_SPINDLE_DIR_ENABLE                                   // FAN2
+#define SPINDLE_DIRECTION_PORT      GPIOB
+#define SPINDLE_DIRECTION_PIN       2
+#else
+#define AUXOUTPUT1_PORT             GPIOB
+#define AUXOUTPUT1_PIN              2
+#endif
+
+#if DRIVER_SPINDLE_ENABLE                                       // FAN1
+#define SPINDLE_ENABLE_PORT         GPIOB
+#define SPINDLE_ENABLE_PIN          1
+#else
+#define AUXOUTPUT2_PORT             GPIOB
+#define AUXOUTPUT2_PIN              1
+#endif
 
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PORT          GPIOB
@@ -139,11 +156,6 @@
 #define FEED_HOLD_PIN               2                           // Y+ Limit
 #define CYCLE_START_PORT            GPIOA
 #define CYCLE_START_PIN             3                           // Z+ Limit
-
-#if SAFETY_DOOR_ENABLE
-//#define SAFETY_DOOR_PORT            GPIOG
-//#define SAFETY_DOOR_PIN             6                           // EXP1 PG4
-#endif
 #define CONTROL_INMODE GPIO_BITBAND
 
 // Define probe switch input pin.

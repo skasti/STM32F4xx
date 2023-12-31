@@ -36,6 +36,7 @@
 #define I2C_ENABLE      0
 #define EEPROM_ENABLE   0 // Disabled for now for BlackPill - pin differences... // Only change if BoosterPack does not have EEPROM mounted
 #endif
+#define SERIAL_PORT     1   // GPIOA: TX = 9, RX = 10
 
 // Define step pulse output pins.
 #define STEP_PORT               GPIOA
@@ -79,15 +80,31 @@
 #endif
 #endif
 
-  // Define spindle enable and spindle direction output pins.
-#define SPINDLE_ENABLE_PORT     GPIOB
-#define SPINDLE_ENABLE_PIN      1
-#define SPINDLE_DIRECTION_PORT  GPIOB
-#define SPINDLE_DIRECTION_PIN   0
+// Define driver spindle pins
 
-// Define spindle PWM output pin.
+#if DRIVER_SPINDLE_PWM_ENABLE
 #define SPINDLE_PWM_PORT_BASE   GPIOA_BASE
 #define SPINDLE_PWM_PIN         8
+#else
+#define AUXOUTPUT0_PORT         GPIOA
+#define AUXOUTPUT0_PIN          8
+#endif
+
+#if DRIVER_SPINDLE_DIR_ENABLE
+#define SPINDLE_DIRECTION_PORT  GPIOB
+#define SPINDLE_DIRECTION_PIN   0
+#else
+#define AUXOUTPUT1_PORT         GPIOB
+#define AUXOUTPUT1_PIN          0
+#endif
+
+#if DRIVER_SPINDLE_ENABLE
+#define SPINDLE_ENABLE_PORT     GPIOB
+#define SPINDLE_ENABLE_PIN      1
+#else
+#define AUXOUTPUT2_PORT         GPIOB
+#define AUXOUTPUT2_PIN          1
+#endif
 
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PORT      GPIOC
@@ -100,10 +117,20 @@
 #define RESET_PIN               6
 #define FEED_HOLD_PIN           7
 #define CYCLE_START_PIN         8
-#if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN         9
-#endif
 #define CONTROL_INMODE          GPIO_SHIFT6
+
+#define AUXINPUT0_PORT          GPIOB
+#define AUXINPUT0_PIN           9
+
+#if SAFETY_DOOR_ENABLE
+#define SAFETY_DOOR_PORT        AUXINPUT0_PORT
+#define SAFETY_DOOR_PIN         AUXINPUT0_PIN
+#endif
+
+#if MOTOR_FAULT_ENABLE
+#define MOTOR_FAULT_PORT        AUXINPUT0_PORT
+#define MOTOR_FAULT_PIN         AUXINPUT0_PIN
+#endif
 
 // Define probe switch input pin.
 #define PROBE_PORT              GPIOA

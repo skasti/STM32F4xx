@@ -48,3 +48,9 @@
 [submodule "probe_plugin"]
 	path = probe_plugin
 	url = https://github.com/Expatria-Technologies/grblhal_probe_plugin
+[submodule "fans"]
+	path = fans
+	url = https://github.com/grblHAL/Plugin_fans/
+[submodule "plasma"]
+	path = plasma
+	url = https://github.com/grblHAL/Plugin_plasma/

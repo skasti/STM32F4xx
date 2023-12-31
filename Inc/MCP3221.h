@@ -1,9 +1,11 @@
 /*
-  spi.h - SPI support for SD card, Trinamic & networking (WizNet) plugins
+  MCP3221.h - analog input from a MCP3221 I2C ADC
 
-  Part of grblHAL driver for STM32F4xx
+  Driver code for STM32F4xx processors
 
-  Copyright (c) 2020-2023 Terje Io
+  Part of grblHAL
+
+  Copyright (c) 2021-2023 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,14 +21,9 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef _GRBL_SPI_H_
-#define _GRBL_SPI_H_
+#pragma once
 
-void spi_init (void);
-uint32_t spi_set_speed (uint32_t prescaler);
-uint8_t spi_get_byte (void);
-uint8_t spi_put_byte (uint8_t byte);
-void spi_write (uint8_t *data, uint16_t len);
-void spi_read (uint8_t *data, uint16_t len);
+bool MCP3221_init (void);
+uint16_t MCP3221_read (void);
 
-#endif
+/*EOF*/

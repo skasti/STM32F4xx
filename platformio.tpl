@@ -28,9 +28,11 @@ lib_deps =
   motors
   trinamic
   odometer
+  fans
   FatFs
   sdcard
   spindle
+  embroidery
   Drivers/FATFS/App
   Drivers/FATFS/Target
   # USB serial support

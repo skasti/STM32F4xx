@@ -34,8 +34,9 @@
 #define BOARD_NAME "BTT SKR-2 (DAC)"
 #define HAS_BOARD_INIT
 
-#define I2C_PORT 1      // GPIOB, SCL_PIN = 8, SDA_PIN = 9
-//#define I2C1_ALT_PINMAP // GPIOB, SCL_PIN = 6, SDA_PIN = 7
+#define SERIAL_PORT     1   // GPIOA: TX = 9, RX = 10
+#define SERIAL1_PORT   32   // GPIOD: TX = 8, RX = 9
+#define I2C_PORT        1   // GPIOB: SCL = 8, SDA = 9
 
 // If we want to debug, we need to use USART1
 #if defined(DEBUG) && defined(USB_SERIAL_CDC)
@@ -109,15 +110,31 @@
 #define M4_ENABLE_PIN               13
 #endif
 
-  // Define spindle enable and spindle direction output pins.
-#define SPINDLE_ENABLE_PORT         GPIOB
-#define SPINDLE_ENABLE_PIN          6                           // FAN1
-#define SPINDLE_DIRECTION_PORT      GPIOB
-#define SPINDLE_DIRECTION_PIN       5                           // FAN2
+// Define driver spindle pins
 
-// Define spindle PWM output pin.
+#if DRIVER_SPINDLE_PWM_ENABLE                                   // EXP1 - PB0, pin 2
 #define SPINDLE_PWM_PORT_BASE       GPIOB_BASE
-#define SPINDLE_PWM_PIN             0                           // EXP1 - PB0, pin 2
+#define SPINDLE_PWM_PIN             0
+#else
+#define AUXOUTPUT0_PORT             GPIOB
+#define AUXOUTPUT0_PIN              0
+#endif
+
+#if DRIVER_SPINDLE_DIR_ENABLE                                   // FAN2
+#define SPINDLE_DIRECTION_PORT      GPIOB
+#define SPINDLE_DIRECTION_PIN       5
+#else
+#define AUXOUTPUT1_PORT             GPIOB
+#define AUXOUTPUT1_PIN              5
+#endif
+
+#if DRIVER_SPINDLE_ENABLE                                       // FAN1
+#define SPINDLE_ENABLE_PORT         GPIOB
+#define SPINDLE_ENABLE_PIN          6
+#else
+#define AUXOUTPUT2_PORT             GPIOB
+#define AUXOUTPUT2_PIN              6
+#endif
 
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PORT          GPIOB
@@ -131,12 +148,20 @@
 #define RESET_PIN                   10                          // Exp1-5
 #define FEED_HOLD_PIN               11                          // Exp1-6
 #define CYCLE_START_PIN             12                          // Exp1-7
+#define CONTROL_INMODE              GPIO_BITBAND
+
+#define AUXINPUT0_PORT              GPIOE
+#define AUXINPUT0_PIN               13                          // EXP1-8
 
 #if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PORT            GPIOE
-#define SAFETY_DOOR_PIN             13                          // EXP1-8
+#define SAFETY_DOOR_PORT            AUXINPUT0_PORT
+#define SAFETY_DOOR_PIN             AUXINPUT0_PIN
 #endif
-#define CONTROL_INMODE              GPIO_BITBAND
+
+#if MOTOR_FAULT_ENABLE
+#define MOTOR_FAULT_PORT            AUXINPUT0_PORT
+#define MOTOR_FAULT_PIN             AUXINPUT0_PIN
+#endif
 
 // Define probe switch input pin.
 #define PROBE_PORT                  GPIOE

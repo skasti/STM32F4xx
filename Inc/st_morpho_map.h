@@ -36,25 +36,25 @@
 #endif
 
 #define BOARD_NAME "Nucleo-64 CNC Breakout"
+#define BOARD_URL "https://github.com/terjeio/CNC_Breakout_Nucleo64"
 
+/*
 #ifndef WEB_BUILD
 #undef I2C_ENABLE
 #undef EEPROM_ENABLE
 //#undef EEPROM_IS_FRAM
 #define I2C_ENABLE      1
-#define EEPROM_ENABLE   0
+#define EEPROM_ENABLE   16
 //#define EEPROM_IS_FRAM  1
 #endif
-
+*/
+#define SERIAL_PORT     2   // GPIOA: TX = 2, RX = 3
+#define SERIAL1_PORT    1   // GPIOA: TX = 9, RX = 10
 #if I2C_ENABLE
-#define I2C_PORT        1 // PB8 = SCK, PB9 = SDA
+#define I2C_PORT        1   // GPIOB: SCL = 8, SDA = 9
 #endif
 
-//#undef SPINDLE_SYNC_ENABLE
-//#define SPINDLE_SYNC_ENABLE 1
-
 #define IS_NUCLEO_BOB
-#define HAS_IOPORTS
 #define HAS_BOARD_INIT
 
 #if SDCARD_ENABLE || TRINAMIC_SPI_ENABLE || ETHERNET_ENABLE
@@ -115,16 +115,31 @@
 #define M3_ENABLE_PIN           6
 #endif
 
-  // Define spindle enable and spindle direction output pins.
-#define SPINDLE_ENABLE_PORT     GPIOB
-#define SPINDLE_ENABLE_PIN      3
-#define SPINDLE_DIRECTION_PORT  GPIOB
-#define SPINDLE_DIRECTION_PIN   5
-#define SPINDLE_DIRECTION_BIT   (1<<SPINDLE_DIRECTION_PIN)
+// Define driver spindle pins
 
-// Define spindle PWM output pin.
+#if DRIVER_SPINDLE_PWM_ENABLE
 #define SPINDLE_PWM_PORT_BASE   GPIOA_BASE
 #define SPINDLE_PWM_PIN         8
+#else
+#define AUXOUTPUT4_PORT         GPIOA
+#define AUXOUTPUT4_PIN          8
+#endif
+
+#if DRIVER_SPINDLE_DIR_ENABLE
+#define SPINDLE_DIRECTION_PORT  GPIOB
+#define SPINDLE_DIRECTION_PIN   5
+#else
+#define AUXOUTPUT5_PORT         GPIOB
+#define AUXOUTPUT5_PIN          5
+#endif
+
+#if DRIVER_SPINDLE_ENABLE
+#define SPINDLE_ENABLE_PORT     GPIOB
+#define SPINDLE_ENABLE_PIN      3
+#else
+#define AUXOUTPUT6_PORT         GPIOB
+#define AUXOUTPUT6_PIN          3
+#endif
 
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PORT      GPIOB
@@ -137,9 +152,6 @@
 #define RESET_PIN               2
 #define FEED_HOLD_PIN           3
 #define CYCLE_START_PIN         4
-#if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN         1
-#endif
 #define CONTROL_INMODE          GPIO_BITBAND
 
 // Define probe switch input pin.
@@ -147,7 +159,7 @@
 #define PROBE_PIN               7
 
 // Spindle encoder pins.
-#if SPINDLE_SYNC_ENABLE
+#if SPINDLE_ENCODER_ENABLE
 
 #define SPINDLE_INDEX_PORT      GPIOB
 #define SPINDLE_INDEX_PIN       14
@@ -192,6 +204,8 @@
 #define AUXINPUT2_PORT          GPIOB
 #define AUXINPUT2_PIN           13
 #endif
+#define AUXINPUT4_PORT          GPIOC
+#define AUXINPUT4_PIN           1
 
 #define AUXOUTPUT0_PORT         GPIOB
 #define AUXOUTPUT0_PIN          15
@@ -239,14 +253,38 @@
 #define AUXOUTPUT2_PIN          6
 #define AUXOUTPUT3_PORT         GPIOA
 #define AUXOUTPUT3_PIN          5
+#ifndef AUXOUTPUT4_PORT
 #define AUXOUTPUT4_PORT         GPIOA
 #define AUXOUTPUT4_PIN          7
+#endif
+#ifndef AUXOUTPUT5_PORT
 #define AUXOUTPUT5_PORT         GPIOB
 #define AUXOUTPUT5_PIN          7
+#endif
 #if MPG_MODE == 0
+#if (SPINDLE_ENABLE & (1<<SPINDLE_PWM2))
+#define AUXOUTPUT0_PWM_PORT_BASE GPIOC_BASE
+#define AUXOUTPUT0_PWM_PIN       8
+#elif !defined(AUXOUTPUT6_PORT)
 #define AUXOUTPUT6_PORT         GPIOC
 #define AUXOUTPUT6_PIN          8
 #endif
+#endif
+#endif
+
+#if SAFETY_DOOR_ENABLE
+#define SAFETY_DOOR_PORT        AUXINPUT4_PORT
+#define SAFETY_DOOR_PIN         AUXINPUT4_PIN
+#endif
+
+#if MOTOR_FAULT_ENABLE && defined(AUXINPUT1_PORT)
+#define MOTOR_FAULT_PORT        AUXINPUT1_PORT
+#define MOTOR_FAULT_PIN         AUXINPUT1_PIN
+#endif
+
+#if MOTOR_WARNING_ENABLE && defined(AUXINPUT3_PORT)
+#define MOTOR_WARNING_PORT      AUXINPUT3_PORT
+#define MOTOR_WARNING_PIN       AUXINPUT3_PIN
 #endif
 
 // EOF

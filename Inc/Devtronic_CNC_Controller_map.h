@@ -1,5 +1,5 @@
 /*
-  blackpill_alt2_map.h - driver code for STM32F4xx (Blackpill) breakout board
+  Devtronic_CNC_Controller_map.h - driver code for STM32F4xx (Blackpill) breakout board
 
   Part of GrblHAL
 
@@ -21,6 +21,11 @@
 
 /* Pin Assignments:
  *
+ *                    B Direction -   - B Step
+ *                                 | |
+ *                               G S D +
+ *                               N C I 3
+ *                               D K O V
  *                             -----------
  *                         VB |           | +3V
  *           Step En/Dis  C13 |           | GND
@@ -45,15 +50,17 @@
  *                             -----------
  */
 
-#if N_ABC_MOTORS > 1
+#if N_ABC_MOTORS > 2
 #error "Axis configuration is not supported!"
 #endif
 
 #if SPINDLE_SYNC_ENABLE
-#define BOARD_NAME "BlackPill Lathe"
+#define BOARD_NAME "Devtronic CNC Controller with Spindle Sync"
 #else
-#define BOARD_NAME "BlackPill Alt. 2"
+#define BOARD_NAME "Devtronic CNC Controller"
 #endif
+
+#define HAS_BOARD_INIT
 
 #define SERIAL_PORT 1   // GPIOA: TX = 9, RX = 10
 #define I2C_PORT    1   // GPIOB: SCL = 8, SDA = 9
@@ -63,7 +70,7 @@
 #define X_STEP_PIN              2
 #define Y_STEP_PIN              4
 #define Z_STEP_PIN              6
-#if N_ABC_MOTORS == 1
+#if N_ABC_MOTORS > 0
 #define STEP_OUTMODE            GPIO_BITBAND
 #else
 #define STEP_OUTMODE            GPIO_MAP
@@ -73,7 +80,7 @@
 #define X_DIRECTION_PIN         3
 #define Y_DIRECTION_PIN         5
 #define Z_DIRECTION_PIN         7
-#if N_ABC_MOTORS == 1
+#if N_ABC_MOTORS > 0
 #define DIRECTION_OUTMODE       GPIO_BITBAND
 #else
 #define DIRECTION_OUTMODE       GPIO_MAP
@@ -92,7 +99,20 @@
 #define LIMIT_INMODE            GPIO_SHIFT12
 
 // Define ganged axis or A axis step pulse and step direction output pins.
-#if N_ABC_MOTORS == 1
+#if N_ABC_MOTORS == 2
+#define M3_AVAILABLE
+#define M3_STEP_PORT            GPIOB
+#define M3_STEP_PIN             0
+#define M3_DIRECTION_PORT       GPIOB
+#define M3_DIRECTION_PIN        1
+#define M3_LIMIT_PORT           GPIOB
+#define M3_LIMIT_PIN            15
+#define M4_AVAILABLE
+#define M4_STEP_PORT            GPIOA
+#define M4_STEP_PIN             13
+#define M4_DIRECTION_PORT       GPIOA
+#define M4_DIRECTION_PIN        14
+#elif N_ABC_MOTORS == 1
 #define M3_AVAILABLE
 #define M3_STEP_PORT            GPIOB
 #define M3_STEP_PIN             0
@@ -105,8 +125,8 @@
 #define AUXOUTPUT0_PIN          0
 #define AUXOUTPUT1_PORT         GPIOB
 #define AUXOUTPUT1_PIN          1
-#define AUXOUTPUT2_PORT         GPIOB
-#define AUXOUTPUT2_PIN          15
+#define AUXINPUT1_PORT          GPIOB
+#define AUXINPUT1_PIN           15
 #endif
 
 // Define driver spindle pins
@@ -115,24 +135,24 @@
 #define SPINDLE_PWM_PORT_BASE   GPIOA_BASE
 #define SPINDLE_PWM_PIN         8
 #else
-#define AUXOUTPUT3_PORT         GPIOA
-#define AUXOUTPUT3_PIN          8
+#define AUXOUTPUT2_PORT         GPIOA
+#define AUXOUTPUT2_PIN          8
 #endif
 
 #if DRIVER_SPINDLE_DIR_ENABLE
 #define SPINDLE_DIRECTION_PORT  GPIOB
 #define SPINDLE_DIRECTION_PIN   10
 #else
-#define AUXOUTPUT4_PORT         GPIOB
-#define AUXOUTPUT4_PIN          10
+#define AUXOUTPUT3_PORT         GPIOB
+#define AUXOUTPUT3_PIN          10
 #endif
 
 #if DRIVER_SPINDLE_ENABLE
 #define SPINDLE_ENABLE_PORT     GPIOB
 #define SPINDLE_ENABLE_PIN      2
 #else
-#define AUXOUTPUT5_PORT         GPIOB
-#define AUXOUTPUT5_PIN          2
+#define AUXOUTPUT4_PORT         GPIOB
+#define AUXOUTPUT4_PIN          2
 #endif
 
 // Define flood and mist coolant enable output pins.
@@ -148,8 +168,6 @@
 #define FEED_HOLD_PIN           7
 #define CYCLE_START_PORT        GPIOB
 #define CYCLE_START_PIN         6
-#define CONTROL_INMODE          GPIO_BITBAND
-
 #if I2C_STROBE_ENABLE && !SAFETY_DOOR_ENABLE
 #define I2C_STROBE_PORT         GPIOA
 #define I2C_STROBE_PIN          1
@@ -157,11 +175,7 @@
 #define AUXINPUT0_PORT          GPIOA
 #define AUXINPUT0_PIN           1
 #endif
-
-#if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PORT        AUXINPUT0_PORT
-#define SAFETY_DOOR_PIN         AUXINPUT0_PIN
-#endif
+#define CONTROL_INMODE          GPIO_BITBAND
 
 // Define probe switch input pin.
 #define PROBE_PORT              GPIOB
@@ -175,13 +189,18 @@
 #define SPINDLE_INDEX_PIN       4
 #define SPINDLE_PULSE_PORT      GPIOA
 #define SPINDLE_PULSE_PIN       15
-#elif N_ABC_MOTORS == 1
-#define AUXOUTPUT0_PORT         GPIOB
-#define AUXOUTPUT0_PIN          4
-#define AUXOUTPUT1_PORT         GPIOB
-#define AUXOUTPUT1_PIN          3
-#define AUXOUTPUT2_PORT         GPIOA
-#define AUXOUTPUT2_PIN          15
+#else
+#define AUXINPUT2_PORT         GPIOB
+#define AUXINPUT2_PIN          4
+#define AUXINPUT3_PORT         GPIOB
+#define AUXINPUT3_PIN          3
+#define AUXINPUT4_PORT         GPIOA
+#define AUXINPUT4_PIN          15
+#endif
+
+#if SAFETY_DOOR_ENABLE && defined(AUXINPUT0_PORT)
+#define SAFETY_DOOR_PORT        AUXINPUT0_PORT
+#define SAFETY_DOOR_PIN         AUXINPUT0_PIN
 #endif
 
 #if KEYPAD_ENABLE == 1 && SAFETY_DOOR_ENABLE

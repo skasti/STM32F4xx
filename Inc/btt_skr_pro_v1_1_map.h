@@ -19,7 +19,7 @@
 
 // IMPORTANT: Control inputs are mapped differently when build is configured for more than 3 axes!
 
-#if N_ABC_MOTORS > 3 || N_AUTO_SQUARED > 1
+#if N_ABC_MOTORS > 3 || N_AUTO_SQUARED > 2
 #error "Axis configuration is not supported!"
 #endif
 
@@ -35,12 +35,11 @@
 #define BOARD_URL "https://github.com/bigtreetech/BIGTREETECH-SKR-PRO-V1.1"
 #endif
 
-#if USB_SERIAL_CDC == 0
-//#define SERIAL_MOD 3
-#endif
-
-#define I2C_PORT 1
-#define I2C1_ALT_PINMAP // GPIOB, SCL_PIN = 6, SDA_PIN = 7
+#define SERIAL_PORT     1       // GPIOA: TX = 9, RX = 10
+#define SERIAL1_PORT   32       // GPIOD: TX = 8, RX = 9
+#define SERIAL2_PORT    6       // GPIOC: TX = 6, RX = 7
+#define I2C_PORT        1
+#define I2C1_ALT_PINMAP         // GPIOB: SCL = 6, SDA = 7
 #if TRINAMIC_ENABLE
 #define HAS_BOARD_INIT
 #endif
@@ -103,8 +102,8 @@
 #define M4_STEP_PIN                 15
 #define M4_DIRECTION_PORT           GPIOE
 #define M4_DIRECTION_PIN            7
-//#define M4_LIMIT_PORT               GPIOE // Conflict with X limit switch IRQ
-//#define M4_LIMIT_PIN                10
+#define M4_LIMIT_PORT               GPIOG // NOTE: Cannot use the E1 input due to conflict
+#define M4_LIMIT_PIN                5     // with X limit switch IRQ. Using E2 input instead.
 #define M4_ENABLE_PORT              GPIOA
 #define M4_ENABLE_PIN               3
 #endif
@@ -116,21 +115,35 @@
 #define M5_STEP_PIN                 13
 #define M5_DIRECTION_PORT           GPIOG
 #define M5_DIRECTION_PIN            9
-#define M5_LIMIT_PORT               GPIOG
-#define M5_LIMIT_PIN                5
 #define M5_ENABLE_PORT              GPIOF
 #define M5_ENABLE_PIN               0
 #endif
 
-  // Define spindle enable and spindle direction output pins.
-#define SPINDLE_ENABLE_PORT         GPIOE
-#define SPINDLE_ENABLE_PIN          5                           // FAN1
-#define SPINDLE_DIRECTION_PORT      GPIOE
-#define SPINDLE_DIRECTION_PIN       6                           // FAN2
+// Define driver spindle pins
 
-// Define spindle PWM output pin.
+#if DRIVER_SPINDLE_PWM_ENABLE                                   // EXP1 - PA8
 #define SPINDLE_PWM_PORT_BASE       GPIOA_BASE
-#define SPINDLE_PWM_PIN             8                           // EXT1 - PA8
+#define SPINDLE_PWM_PIN             8
+#else
+#define AUXOUTPUT0_PORT             GPIOA
+#define AUXOUTPUT0_PIN              8
+#endif
+
+#if DRIVER_SPINDLE_DIR_ENABLE                                   // FAN2
+#define SPINDLE_DIRECTION_PORT      GPIOE
+#define SPINDLE_DIRECTION_PIN       6
+#else
+#define AUXOUTPUT1_PORT             GPIOE
+#define AUXOUTPUT1_PIN              6
+#endif
+
+#if DRIVER_SPINDLE_ENABLE                                       // FAN1
+#define SPINDLE_ENABLE_PORT         GPIOE
+#define SPINDLE_ENABLE_PIN          5
+#else
+#define AUXOUTPUT2_PORT             GPIOE
+#define AUXOUTPUT2_PIN              5
+#endif
 
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PORT          GPIOB
@@ -145,9 +158,20 @@
 #define FEED_HOLD_PIN               11                          // EXP1 PD11
 #define CYCLE_START_PORT            GPIOG
 #define CYCLE_START_PIN             2                           // EXP1 PG2
-#define SAFETY_DOOR_PORT            GPIOG
-#define SAFETY_DOOR_PIN             4                           // EXP1 PG4
 #define CONTROL_INMODE GPIO_BITBAND
+
+#define AUXINPUT0_PORT              GPIOG
+#define AUXINPUT0_PIN               4                           // EXP1 PG4
+
+#if SAFETY_DOOR_ENABLE
+#define SAFETY_DOOR_PORT            AUXINPUT0_PORT
+#define SAFETY_DOOR_PIN             AUXINPUT0_PIN
+#endif
+
+#if MOTOR_FAULT_ENABLE
+#define MOTOR_FAULT_PORT            AUXINPUT0_PORT
+#define MOTOR_FAULT_PIN             AUXINPUT0_PIN
+#endif
 
 // Define probe switch input pin.
 #define PROBE_PORT                  GPIOA

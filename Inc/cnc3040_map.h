@@ -17,6 +17,32 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/* Pin Assignments:
+ *
+ *                             -----------
+ *                         VB |           | +3V
+ *                        C13 |           | GND
+ *         Coolant Flood  C14 |           | +5V
+ *          Coolant Mist  C15 | *     - * | B9   Steppers enable
+ *                        RST |      |K|  | B8   Safety door
+ *                X Step   A0 |       -   | B7   Feed Hold
+ *           X Direction   A1 |           | B6   Cycle Start
+ *                Y Step   A2 |           | B5   Reset/EStop Probe
+ *           Y Direction   A3 |    / \    | B4   Coolant Mist
+ *                Z Step   A4 |   <MCU>   | B3   Coolant Flood
+ *           Z Direction   A5 |    \ /    | A15
+ *               M3 Step   A6 |           | A12  USB D+
+ *          M3 Direction   A7 |   -   -   | A11  USB D-
+ *     Spindle Direction   B0 |  |R| |B|  | A10  M4 Direction
+ *        Spindle Enable   B1 |   -   -   | A9   M4 Step
+ *               X Limit   B2 |           | A8   Spindle PWM
+ *               Y Limit  B10 |           | B15  Cycle Start
+ *                        +3V |   -----   | B14  Feed Hold
+ *                        GND |  |     |  | B13  Probe
+ *                        +5V |  | USB |  | B12  Z Limit
+ *                             -----------
+ */
+
 #if N_ABC_MOTORS > 2
 #error "Axis configuration is not supported!"
 #endif
@@ -32,6 +58,9 @@
 #else
 #define BOARD_NAME "CNC 3040"
 #endif
+#define BOARD_URL "https://github.com/shaise/GrblCNC/tree/master/Hardware/GrblCnc3040"
+
+#define SERIAL_PORT             11  // GPIOB: TX = 6, RX = 7
 
 // Define step pulse output pins.
 #define STEP_PORT               GPIOA
@@ -77,17 +106,35 @@
 #define M4_STEP_PIN             9
 #define M4_DIRECTION_PORT       DIRECTION_PORT
 #define M4_DIRECTION_PIN        10
+#else
+//#define SERIAL1_PORT             1   // GPIOA: TX = 9, RX = 10
 #endif
 
-  // Define spindle enable and spindle direction output pins.
-#define SPINDLE_ENABLE_PORT     GPIOB
-#define SPINDLE_ENABLE_PIN      1
-#define SPINDLE_DIRECTION_PORT  GPIOB
-#define SPINDLE_DIRECTION_PIN   0
+// Define driver spindle pins
 
-// Define spindle PWM output pin.
+#if DRIVER_SPINDLE_PWM_ENABLE
 #define SPINDLE_PWM_PORT_BASE   GPIOA_BASE
 #define SPINDLE_PWM_PIN         8
+#else
+#define AUXOUTPUT0_PORT         GPIOA
+#define AUXOUTPUT0_PIN          8
+#endif
+
+#if DRIVER_SPINDLE_DIR_ENABLE
+#define SPINDLE_DIRECTION_PORT  GPIOB
+#define SPINDLE_DIRECTION_PIN   0
+#else
+#define AUXOUTPUT1_PORT         GPIOB
+#define AUXOUTPUT1_PIN          0
+#endif
+
+#if DRIVER_SPINDLE_ENABLE
+#define SPINDLE_ENABLE_PORT     GPIOB
+#define SPINDLE_ENABLE_PIN      1
+#else
+#define AUXOUTPUT2_PORT         GPIOB
+#define AUXOUTPUT2_PIN          1
+#endif
 
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PORT      GPIOB
@@ -100,11 +147,23 @@
 #define RESET_PIN               5
 #define FEED_HOLD_PIN           14
 #define CYCLE_START_PIN         15
-#if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN         8
-#endif
 #define CONTROL_INMODE          GPIO_MAP
+
+#define AUXINPUT0_PORT          GPIOB
+#define AUXINPUT0_PIN           8
+
+#if SAFETY_DOOR_ENABLE
+#define SAFETY_DOOR_PORT        AUXINPUT0_PORT
+#define SAFETY_DOOR_PIN         AUXINPUT0_PIN
+#endif
+
+#if MOTOR_FAULT_ENABLE
+#define MOTOR_FAULT_PORT        AUXINPUT0_PORT
+#define MOTOR_FAULT_PIN         AUXINPUT0_PIN
+#endif
 
 // Define probe switch input pin.
 #define PROBE_PORT              GPIOB
 #define PROBE_PIN               13
+
+/* EOF */

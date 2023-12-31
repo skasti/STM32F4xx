@@ -24,6 +24,7 @@
 #endif
 
 #define BOARD_NAME "Nucleo-64 CNC Breakout (DAC)"
+#define BOARD_URL "https://github.com/terjeio/CNC_Breakout_Nucleo64"
 
 #ifndef WEB_BUILD
 #undef I2C_ENABLE
@@ -34,11 +35,12 @@
 #define EEPROM_IS_FRAM  1
 #endif
 
+#define SERIAL_PORT     2   // GPIOA: TX = 2, RX = 3
+#define SERIAL1_PORT    1   // GPIOA: TX = 9, RX = 10
 #if I2C_ENABLE
-#define I2C_PORT        1 // PB8 = SCK, PB9 = SDA
+#define I2C_PORT        1   // PB8 = SCK, PB9 = SDA
 #endif
 
-#define HAS_IOPORTS
 #define HAS_BOARD_INIT
 #define I2C_PORT 1
 #define IS_NUCLEO_BOB
@@ -75,15 +77,31 @@
 #define Z_LIMIT_PIN             10
 #define LIMIT_INMODE            GPIO_BITBAND
 
-  // Define spindle enable and spindle direction output pins.
-#define SPINDLE_ENABLE_PORT     GPIOB
-#define SPINDLE_ENABLE_PIN      3
-#define SPINDLE_DIRECTION_PORT  GPIOB
-#define SPINDLE_DIRECTION_PIN   5
+// Define driver spindle pins
 
-// Define spindle PWM output pin.
+#if DRIVER_SPINDLE_PWM_ENABLE
 #define SPINDLE_PWM_PORT_BASE   GPIOA_BASE
 #define SPINDLE_PWM_PIN         8
+#else
+#define AUXOUTPUT4_PORT         GPIOA
+#define AUXOUTPUT4_PIN          8
+#endif
+
+#if DRIVER_SPINDLE_DIR_ENABLE
+#define SPINDLE_DIRECTION_PORT  GPIOB
+#define SPINDLE_DIRECTION_PIN   5
+#else
+#define AUXOUTPUT5_PORT         GPIOB
+#define AUXOUTPUT5_PIN          5
+#endif
+
+#if DRIVER_SPINDLE_ENABLE
+#define SPINDLE_ENABLE_PORT     GPIOB
+#define SPINDLE_ENABLE_PIN      3
+#else
+#define AUXOUTPUT6_PORT         GPIOB
+#define AUXOUTPUT6_PIN          3
+#endif
 
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PORT      GPIOB
@@ -109,9 +127,6 @@
 #define RESET_PIN               2
 #define FEED_HOLD_PIN           3
 #define CYCLE_START_PIN         4
-#if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN         1
-#endif
 #define CONTROL_INMODE GPIO_MAP
 
 // Define probe switch input pin.
@@ -123,6 +138,8 @@
 #define AUXINPUT0_PIN           13
 #define AUXINPUT1_PORT          GPIOB
 #define AUXINPUT1_PIN           14
+#define AUXINPUT2_PORT          GPIOC
+#define AUXINPUT2_PIN           1
 
 #define AUXOUTPUT0_PORT         GPIOB
 #define AUXOUTPUT0_PIN          15
@@ -137,6 +154,16 @@
 #if SDCARD_ENABLE
 #define SD_CS_PORT              GPIOC
 #define SD_CS_PIN               8
+#endif
+
+#if SAFETY_DOOR_ENABLE
+#define SAFETY_DOOR_PORT        AUXINPUT2_PORT
+#define SAFETY_DOOR_PIN         AUXINPUT2_PIN
+#endif
+
+#if MOTOR_FAULT_ENABLE
+#define MOTOR_FAULT_PORT        AUXINPUT1_PORT
+#define MOTOR_FAULT_PIN         AUXINPUT1_PIN
 #endif
 
 // EOF
