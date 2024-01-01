@@ -50,8 +50,8 @@
 #define HAS_BOARD_INIT
 
 #if MODBUS_ENABLE
-#define SERIAL2_MOD 3
-#define MODBUS_SERIAL_PORT 2
+#define SERIAL2_PORT 33
+#define MODBUS_RTU_STREAM 2
 #endif
 
 #if MPG_ENABLE
@@ -59,6 +59,7 @@
 #define MPG_MODE_PIN            15
 #undef MPG_STREAM
 #define MPG_STREAM 1
+#define SERIAL1_PORT 1
 #endif
 
 //********on first revision of this board Y step/dir was flipped.  Use below config?
@@ -89,14 +90,14 @@
 #define STEPPERS_ENABLE_PIN        13
 #define STEPPERS_ENABLE_OUTMODE    GPIO_BITBAND
 #else
-//#define X_ENABLE_PORT               GPIOA
-//#define X_ENABLE_PIN                14
-//#define Y_ENABLE_PORT               GPIOA
-//#define Y_ENABLE_PIN                14
-//#define Z_ENABLE_PORT               GPIOA
-//#define Z_ENABLE_PIN                13
-//#define STEPPERS_ENABLE_PORT       GPIOA
-//#define STEPPERS_ENABLE_PIN        14
+#define X_ENABLE_PORT               GPIOA
+#define X_ENABLE_PIN                14
+#define Y_ENABLE_PORT               GPIOA
+#define Y_ENABLE_PIN                14
+#define Z_ENABLE_PORT               GPIOA
+#define Z_ENABLE_PIN                13
+#define STEPPERS_ENABLE_PORT        GPIOA
+#define STEPPERS_ENABLE_PIN         14
 #define STEPPERS_ENABLE_OUTMODE    GPIO_BITBAND
 #endif
 
@@ -122,8 +123,8 @@
 #define M3_ENABLE_PORT          GPIOB
 #define M3_ENABLE_PIN           13
 #else
-//#define M3_ENABLE_PORT          GPIOA
-//#define M3_ENABLE_PIN           14
+#define M3_ENABLE_PORT          GPIOA
+#define M3_ENABLE_PIN           14
 #endif
 #endif
 
@@ -140,8 +141,8 @@
 #define M3_ENABLE_PORT          GPIOB
 #define M3_ENABLE_PIN           13
 #else
-//#define M4_ENABLE_PORT          GPIOA
-//#define M4_ENABLE_PIN           14
+#define M4_ENABLE_PORT          GPIOA
+#define M4_ENABLE_PIN           14
 #endif
 #endif
 
