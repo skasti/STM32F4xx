@@ -141,7 +141,7 @@
 #define NETWORK_IP              "192.168.5.1"
 #define NETWORK_GATEWAY         "192.168.5.1"
 #define NETWORK_MASK            "255.255.255.0"
-//#define NETWORK_FTP_PORT        21
+#define NETWORK_FTP_PORT        21
 //#define NETWORK_TELNET_PORT     23
 #define NETWORK_HTTP_PORT       80
 #if HTTP_ENABLE

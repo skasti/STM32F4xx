@@ -206,13 +206,15 @@
 #define FEED_HOLD_PIN           8
 #define CYCLE_START_PORT        GPIOC
 #define CYCLE_START_PIN         11
+
+#define AUXINPUT4_PORT          GPIOC
+#define AUXINPUT4_PIN           4
+
 #if SAFETY_DOOR_ENABLE
-  #define SAFETY_DOOR_PORT        GPIOC
-  #define SAFETY_DOOR_PIN         4
-#else
-  #define AUXINPUT4_PORT          GPIOC
-  #define AUXINPUT4_PIN           4
+#define SAFETY_DOOR_PORT        AUXINPUT4_PORT
+#define SAFETY_DOOR_PIN         AUXINPUT4_PIN  
 #endif
+
 #define CONTROL_INMODE          GPIO_BITBAND
 
 // Define probe input pin.
