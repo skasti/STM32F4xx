@@ -86,8 +86,8 @@
 
 // Define stepper driver enable/disable output pin.
 #ifdef ENABLE_SWD
-//#define STEPPERS_ENABLE_PORT       GPIOB
-//#define STEPPERS_ENABLE_PIN        13
+#define STEPPERS_ENABLE_PORT       GPIOB
+#define STEPPERS_ENABLE_PIN        13
 #define STEPPERS_ENABLE_OUTMODE    GPIO_BITBAND
 #else
 #define X_ENABLE_PORT               GPIOA
