@@ -2346,6 +2346,7 @@ static bool driver_setup (settings_t *settings)
             if(outputpin[i].group == PinGroup_MotorChipSelect ||
                 outputpin[i].group == PinGroup_MotorUART ||
                  outputpin[i].id == Output_SPICS ||
+                 outputpin[i].id == Output_SdCardCS ||
                   outputpin[i].group == PinGroup_StepperEnable)
                 DIGITAL_OUT(outputpin[i].port, outputpin[i].pin, 1);
 
