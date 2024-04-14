@@ -19,7 +19,7 @@
             "svdPath": "C:/Users/andrew/.platformio/platforms/ststm32/misc/svd/STM32F446x.svd",
             "preLaunchTask": {
                 "type": "PlatformIO",
-                "task": "Pre-Debug (f446re_flexi_cnc_ygang_eth_sd_prb_4x)"
+                "task": "Pre-Debug"
             }
         },
         {

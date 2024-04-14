@@ -21,7 +21,7 @@
 
 #include "driver.h"
 
-#if defined(BOARD_FLEXI_HAL) && KEYPAD_ENABLE
+#if defined(BOARD_FLEXI_HAL)
 
 #include <math.h>
 #include <string.h>
@@ -111,7 +111,7 @@ bool flexi_stream_tx_blocking (void)
 }
 #endif
 #endif
-#endif
+
 
 /**
   * @brief This function handles DMA2 stream3 global interrupt.
@@ -135,4 +135,4 @@ void board_init (void)
     MX_DMA_Init();
 }
 
-
+#endif

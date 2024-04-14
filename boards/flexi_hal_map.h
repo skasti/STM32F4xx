@@ -40,6 +40,8 @@
 #endif
 #define BOARD_URL "https://github.com/Expatria-Technologies/Flexi-HAL"
 
+#define WIZCHIP_SPI_PRESCALER SPI_BAUDRATEPRESCALER_4
+
 #undef I2C_ENABLE
 #undef EEPROM_ENABLE
 
@@ -140,6 +142,7 @@
 #define M4_ENABLE_PORT          GPIOA
 #define M4_ENABLE_PIN           14
 #endif
+#endif
 
 #define AUXOUTPUT0_PORT         GPIOB
 #define AUXOUTPUT0_PIN          13
@@ -156,6 +159,7 @@
 #define AUXOUTPUT6_PORT         GPIOB // Spindle enable
 #define AUXOUTPUT6_PIN          2
 
+
 // Define driver spindle pins
 #if DRIVER_SPINDLE_ENABLE
 #define SPINDLE_ENABLE_PORT     AUXOUTPUT6_PORT
@@ -165,11 +169,8 @@
 #define SPINDLE_PWM_PIN         AUXOUTPUT4_PIN
 #endif
 // Define spindle enable and spindle direction output pins.
-#define SPINDLE_ENABLE_PORT     GPIOB
-#define SPINDLE_ENABLE_PIN      2
 #define SPINDLE_DIRECTION_PORT  AUXOUTPUT5_PORT
 #define SPINDLE_DIRECTION_PIN   AUXOUTPUT5_PIN
-#endif
 #endif //DRIVER_SPINDLE_ENABLE
 
 // Define flood and mist coolant enable output pins.
@@ -193,8 +194,8 @@
 #define AUXINPUT5_PIN           10
 
 #if N_ABC_MOTORS != 2
-  #define AUXINPUT3_PORT          GPIOC
-  #define AUXINPUT3_PIN           14
+  #define AUXINPUT6_PORT          GPIOC
+  #define AUXINPUT6_PIN           14
 #endif
 
 
@@ -212,8 +213,8 @@
 #endif
 
 #if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PORT        AUXINPUT4_PORT
-#define SAFETY_DOOR_PIN         AUXINPUT4_PIN  
+#define SAFETY_DOOR_PORT        AUXINPUT3_PORT
+#define SAFETY_DOOR_PIN         AUXINPUT3_PIN  
 #endif
 
 #define CONTROL_INMODE          GPIO_BITBAND
@@ -226,6 +227,8 @@
 #if I2C_STROBE_ENABLE
 #define I2C_STROBE_PORT         AUXINPUT5_PORT
 #define I2C_STROBE_PIN          AUXINPUT5_PIN
+#define I2C_STROBE_BIT (1<<I2C_STROBE_PIN)
+#define I2C_STROBE_AUX_ENABLE
 #endif
 
 #if SDCARD_ENABLE || ETHERNET_ENABLE
