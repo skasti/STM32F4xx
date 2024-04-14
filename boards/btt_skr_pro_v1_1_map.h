@@ -3,18 +3,18 @@
 
   Part of grblHAL
 
-  Grbl is free software: you can redistribute it and/or modify
+  GrblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  GrblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with GrblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 // IMPORTANT: Control inputs are mapped differently when build is configured for more than 3 axes!
@@ -119,31 +119,26 @@
 #define M5_ENABLE_PIN               0
 #endif
 
-// Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE                                   // EXP1 - PA8
-#define SPINDLE_PWM_PORT_BASE       GPIOA_BASE
-#define SPINDLE_PWM_PIN             8
-#else
-#define AUXOUTPUT0_PORT             GPIOA
+#define AUXOUTPUT0_PORT             GPIOA // Spindle PWM, EXP1
 #define AUXOUTPUT0_PIN              8
-#endif
-
-#if DRIVER_SPINDLE_DIR_ENABLE                                   // FAN2
-#define SPINDLE_DIRECTION_PORT      GPIOE
-#define SPINDLE_DIRECTION_PIN       6
-#else
-#define AUXOUTPUT1_PORT             GPIOE
+#define AUXOUTPUT1_PORT             GPIOE // Spindle direction, FAN2
 #define AUXOUTPUT1_PIN              6
-#endif
-
-#if DRIVER_SPINDLE_ENABLE                                       // FAN1
-#define SPINDLE_ENABLE_PORT         GPIOE
-#define SPINDLE_ENABLE_PIN          5
-#else
-#define AUXOUTPUT2_PORT             GPIOE
+#define AUXOUTPUT2_PORT             GPIOE // Spindle enable, FAN1
 #define AUXOUTPUT2_PIN              5
+
+// Define driver spindle pins
+#if DRIVER_SPINDLE_ENABLE
+#define SPINDLE_ENABLE_PORT         AUXOUTPUT2_PORT
+#define SPINDLE_ENABLE_PIN          AUXOUTPUT2_PIN
+#if DRIVER_SPINDLE_PWM_ENABLE
+#define SPINDLE_PWM_PORT            AUXOUTPUT0_PORT
+#define SPINDLE_PWM_PIN             AUXOUTPUT0_PIN
 #endif
+#if DRIVER_SPINDLE_DIR_ENABLE
+#define SPINDLE_DIRECTION_PORT      AUXOUTPUT1_PORT
+#define SPINDLE_DIRECTION_PIN       AUXOUTPUT1_PIN
+#endif
+#endif //DRIVER_SPINDLE_ENABLE
 
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PORT          GPIOB
@@ -162,6 +157,13 @@
 
 #define AUXINPUT0_PORT              GPIOG
 #define AUXINPUT0_PIN               4                           // EXP1 PG4
+#define AUXINPUT1_PORT              GPIOA
+#define AUXINPUT1_PIN               1                           // BLTouch PA1
+
+#if PROBE_ENABLE
+#define PROBE_PORT                  AUXINPUT1_PORT
+#define PROBE_PIN                   AUXINPUT1_PIN
+#endif
 
 #if SAFETY_DOOR_ENABLE
 #define SAFETY_DOOR_PORT            AUXINPUT0_PORT
@@ -172,10 +174,6 @@
 #define MOTOR_FAULT_PORT            AUXINPUT0_PORT
 #define MOTOR_FAULT_PIN             AUXINPUT0_PIN
 #endif
-
-// Define probe switch input pin.
-#define PROBE_PORT                  GPIOA
-#define PROBE_PIN                   1                           // BLTouch PA1
 
 #if SDCARD_ENABLE
 // Connect to the  EXP2 Header

@@ -54,3 +54,6 @@
 [submodule "plasma"]
 	path = plasma
 	url = https://github.com/grblHAL/Plugin_plasma/
+[submodule "webui"]
+	path = webui
+	url = https://github.com/grblHAL/Plugin_WebUI/

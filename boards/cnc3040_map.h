@@ -3,18 +3,18 @@
 
   Part of grblHAL
 
-  Grbl is free software: you can redistribute it and/or modify
+  GrblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  GrblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with GrblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 /* Pin Assignments:
@@ -22,12 +22,12 @@
  *                             -----------
  *                         VB |           | +3V
  *                        C13 |           | GND
- *         Coolant Flood  C14 |           | +5V
- *          Coolant Mist  C15 | *     - * | B9   Steppers enable
+ *                        C14 |           | +5V
+ *                        C15 | *     - * | B9   Steppers enable
  *                        RST |      |K|  | B8   Safety door
  *                X Step   A0 |       -   | B7   Feed Hold
  *           X Direction   A1 |           | B6   Cycle Start
- *                Y Step   A2 |           | B5   Reset/EStop Probe
+ *                Y Step   A2 |           | B5   Reset/EStop
  *           Y Direction   A3 |    / \    | B4   Coolant Mist
  *                Z Step   A4 |   <MCU>   | B3   Coolant Flood
  *           Z Direction   A5 |    \ /    | A15
@@ -50,6 +50,9 @@
 #if TRINAMIC_ENABLE
 #error Trinamic plugin not supported!
 #endif
+#if EEPROM_ENABLE
+#error EEPROM plugin not supported!
+#endif
 
 #if N_AXIS == 5
 #define BOARD_NAME "CNC 3040 5-axis"
@@ -59,8 +62,6 @@
 #define BOARD_NAME "CNC 3040"
 #endif
 #define BOARD_URL "https://github.com/shaise/GrblCNC/tree/master/Hardware/GrblCnc3040"
-
-#define SERIAL_PORT             11  // GPIOB: TX = 6, RX = 7
 
 // Define step pulse output pins.
 #define STEP_PORT               GPIOA
@@ -110,31 +111,26 @@
 //#define SERIAL1_PORT             1   // GPIOA: TX = 9, RX = 10
 #endif
 
+#define AUXOUTPUT0_PORT             GPIOA // Spindle PWM
+#define AUXOUTPUT0_PIN              8
+#define AUXOUTPUT1_PORT             GPIOB // Spindle direction
+#define AUXOUTPUT1_PIN              0
+#define AUXOUTPUT2_PORT             GPIOB // Spindle enable
+#define AUXOUTPUT2_PIN              1
+
 // Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PORT_BASE   GPIOA_BASE
-#define SPINDLE_PWM_PIN         8
-#else
-#define AUXOUTPUT0_PORT         GPIOA
-#define AUXOUTPUT0_PIN          8
-#endif
-
-#if DRIVER_SPINDLE_DIR_ENABLE
-#define SPINDLE_DIRECTION_PORT  GPIOB
-#define SPINDLE_DIRECTION_PIN   0
-#else
-#define AUXOUTPUT1_PORT         GPIOB
-#define AUXOUTPUT1_PIN          0
-#endif
-
 #if DRIVER_SPINDLE_ENABLE
-#define SPINDLE_ENABLE_PORT     GPIOB
-#define SPINDLE_ENABLE_PIN      1
-#else
-#define AUXOUTPUT2_PORT         GPIOB
-#define AUXOUTPUT2_PIN          1
+#define SPINDLE_ENABLE_PORT         AUXOUTPUT2_PORT
+#define SPINDLE_ENABLE_PIN          AUXOUTPUT2_PIN
+#if DRIVER_SPINDLE_PWM_ENABLE
+#define SPINDLE_PWM_PORT            AUXOUTPUT0_PORT
+#define SPINDLE_PWM_PIN             AUXOUTPUT0_PIN
 #endif
+#if DRIVER_SPINDLE_DIR_ENABLE
+#define SPINDLE_DIRECTION_PORT      AUXOUTPUT1_PORT
+#define SPINDLE_DIRECTION_PIN       AUXOUTPUT1_PIN
+#endif
+#endif //DRIVER_SPINDLE_ENABLE
 
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PORT      GPIOB
@@ -151,6 +147,13 @@
 
 #define AUXINPUT0_PORT          GPIOB
 #define AUXINPUT0_PIN           8
+#define AUXINPUT1_PORT          GPIOB
+#define AUXINPUT1_PIN           13
+
+#if PROBE_ENABLE
+#define PROBE_PORT              AUXINPUT1_PORT
+#define PROBE_PIN               AUXINPUT1_PIN
+#endif
 
 #if SAFETY_DOOR_ENABLE
 #define SAFETY_DOOR_PORT        AUXINPUT0_PORT
@@ -161,9 +164,5 @@
 #define MOTOR_FAULT_PORT        AUXINPUT0_PORT
 #define MOTOR_FAULT_PIN         AUXINPUT0_PIN
 #endif
-
-// Define probe switch input pin.
-#define PROBE_PORT              GPIOB
-#define PROBE_PIN               13
 
 /* EOF */

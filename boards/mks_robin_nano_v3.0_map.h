@@ -6,18 +6,18 @@
   Copyright (c) 2021 qbazd
   Copyright (c) 2023 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  GrblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  GrblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with GrblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 #if N_ABC_MOTORS > 2
 #error "MKS ROBIN-NANO 3.0 supports 5 motors max."
@@ -122,31 +122,26 @@
 #define M4_ENABLE_PIN           3
 #endif
 
-// Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE                               // 3D touch
-#define SPINDLE_PWM_PORT_BASE   GPIOA_BASE
-#define SPINDLE_PWM_PIN         8
-#else
-#define AUXOUTPUT0_PORT         GPIOA
+#define AUXOUTPUT0_PORT         GPIOA // Spindle PWM, 3D touch
 #define AUXOUTPUT0_PIN          8
-#endif
-
-#if DRIVER_SPINDLE_DIR_ENABLE                               // FAN1
-#define SPINDLE_DIRECTION_PORT  GPIOB
-#define SPINDLE_DIRECTION_PIN   1
-#else
-#define AUXOUTPUT1_PORT         GPIOB
+#define AUXOUTPUT1_PORT         GPIOB // Spindle direction, FAN1
 #define AUXOUTPUT1_PIN          1
-#endif
-
-#if DRIVER_SPINDLE_ENABLE                                   // HOTBED
-#define SPINDLE_ENABLE_PORT     GPIOA
-#define SPINDLE_ENABLE_PIN      0
-#else
-#define AUXOUTPUT2_PORT         GPIOA
+#define AUXOUTPUT2_PORT         GPIOA // Spindle enable, HOTBED
 #define AUXOUTPUT2_PIN          0
+
+// Define driver spindle pins
+#if DRIVER_SPINDLE_ENABLE
+#define SPINDLE_ENABLE_PORT     AUXOUTPUT2_PORT
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT2_PIN
+#if DRIVER_SPINDLE_PWM_ENABLE
+#define SPINDLE_PWM_PORT        AUXOUTPUT0_PORT
+#define SPINDLE_PWM_PIN         AUXOUTPUT0_PIN
 #endif
+#if DRIVER_SPINDLE_DIR_ENABLE
+#define SPINDLE_DIRECTION_PORT  AUXOUTPUT1_PORT
+#define SPINDLE_DIRECTION_PIN   AUXOUTPUT1_PIN
+#endif
+#endif //DRIVER_SPINDLE_ENABLE
 
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PORT      GPIOE
@@ -170,6 +165,13 @@
 
 #define AUXINPUT0_PORT          GPIOG                       // EXP1 PG4
 #define AUXINPUT0_PIN           6
+#define AUXINPUT1_PORT          GPIOC
+#define AUXINPUT1_PIN           4
+
+#if PROBE_ENABLE
+#define PROBE_PORT              AUXINPUT1_PORT
+#define PROBE_PIN               AUXINPUT1_PIN
+#endif
 
 #if SAFETY_DOOR_ENABLE
 #define SAFETY_DOOR_PORT        AUXINPUT0_PORT
@@ -180,10 +182,6 @@
 #define MOTOR_FAULT_PORT        AUXINPUT0_PORT
 #define MOTOR_FAULT_PIN         AUXINPUT0_PIN
 #endif
-
-// Define probe switch input pin.
-#define PROBE_PORT              GPIOC
-#define PROBE_PIN               4                           // Z+
 
 #if SDCARD_ENABLE
 #define SD_CS_PORT              GPIOC

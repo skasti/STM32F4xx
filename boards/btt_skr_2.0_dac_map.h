@@ -1,22 +1,22 @@
 /*
-  btt_skr_2.0_map.h - driver code for STM32F407 ARM processors
+  btt_skr_2.0_dac_map.h - driver code for STM32F407 ARM processors
 
   Part of grblHAL
 
   Copyright (c) 2021 fitch22
 
-  Grbl is free software: you can redistribute it and/or modify
+  GrblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  GrblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with GrblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #if N_ABC_MOTORS > 2
@@ -39,8 +39,10 @@
 #define I2C_PORT        1   // GPIOB: SCL = 8, SDA = 9
 
 // If we want to debug, we need to use USART1
-#if defined(DEBUG) && defined(USB_SERIAL_CDC)
+#if defined(DEBUG)
 #undef USB_SERIAL_CDC
+#define SERIAL_STREAM 0
+#define USB_SERIAL_CDC 0
 #endif
 
 // Define step pulse output pins.
@@ -110,31 +112,26 @@
 #define M4_ENABLE_PIN               13
 #endif
 
-// Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE                                   // EXP1 - PB0, pin 2
-#define SPINDLE_PWM_PORT_BASE       GPIOB_BASE
-#define SPINDLE_PWM_PIN             0
-#else
-#define AUXOUTPUT0_PORT             GPIOB
+#define AUXOUTPUT0_PORT             GPIOB // Spindle PWM, EXP1 pin 2
 #define AUXOUTPUT0_PIN              0
-#endif
-
-#if DRIVER_SPINDLE_DIR_ENABLE                                   // FAN2
-#define SPINDLE_DIRECTION_PORT      GPIOB
-#define SPINDLE_DIRECTION_PIN       5
-#else
-#define AUXOUTPUT1_PORT             GPIOB
+#define AUXOUTPUT1_PORT             GPIOB // Spindle direction, FAN2
 #define AUXOUTPUT1_PIN              5
-#endif
-
-#if DRIVER_SPINDLE_ENABLE                                       // FAN1
-#define SPINDLE_ENABLE_PORT         GPIOB
-#define SPINDLE_ENABLE_PIN          6
-#else
-#define AUXOUTPUT2_PORT             GPIOB
+#define AUXOUTPUT2_PORT             GPIOB // Spindle enable, FAN1
 #define AUXOUTPUT2_PIN              6
+
+// Define driver spindle pins
+#if DRIVER_SPINDLE_ENABLE
+#define SPINDLE_ENABLE_PORT         AUXOUTPUT2_PORT
+#define SPINDLE_ENABLE_PIN          AUXOUTPUT2_PIN
+#if DRIVER_SPINDLE_PWM_ENABLE
+#define SPINDLE_PWM_PORT            AUXOUTPUT0_PORT
+#define SPINDLE_PWM_PIN             AUXOUTPUT0_PIN
 #endif
+#if DRIVER_SPINDLE_DIR_ENABLE
+#define SPINDLE_DIRECTION_PORT      AUXOUTPUT1_PORT
+#define SPINDLE_DIRECTION_PIN       AUXOUTPUT1_PIN
+#endif
+#endif //DRIVER_SPINDLE_ENABLE
 
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PORT          GPIOB
@@ -152,6 +149,13 @@
 
 #define AUXINPUT0_PORT              GPIOE
 #define AUXINPUT0_PIN               13                          // EXP1-8
+#define AUXINPUT1_PORT              GPIOE
+#define AUXINPUT1_PIN               5                           // Servos
+
+#if PROBE_ENABLE
+#define PROBE_PORT                  AUXINPUT1_PORT
+#define PROBE_PIN                   AUXINPUT1_PIN
+#endif
 
 #if SAFETY_DOOR_ENABLE
 #define SAFETY_DOOR_PORT            AUXINPUT0_PORT
@@ -162,10 +166,6 @@
 #define MOTOR_FAULT_PORT            AUXINPUT0_PORT
 #define MOTOR_FAULT_PIN             AUXINPUT0_PIN
 #endif
-
-// Define probe switch input pin.
-#define PROBE_PORT                  GPIOE
-#define PROBE_PIN                   5                           // Servos
 
 // XXXXX
 // SKR-2 has SD/MMC interface and does not work in SPI mode
