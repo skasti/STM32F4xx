@@ -23,6 +23,9 @@
 typedef struct {
     bool keep_tool;
     tool_id_t tool_id;
+    int32_t tlo_reference[N_AXIS];
+    float tool_length_offset[N_AXIS];
+    axes_signals_t tlo_reference_set;
 } plugin_settings_t;
 
 static nvs_address_t nvs_address;
@@ -31,7 +34,7 @@ static on_report_options_ptr on_report_options;
 static on_tool_changed_ptr on_tool_changed;
 static on_parser_init_ptr on_parser_init;
 static const setting_detail_t user_settings[] = {
-    { Setting_EnableToolPersistence, Group_Toolchange, "Keep tool number over reboot", NULL, Format_Bool, NULL, NULL, NULL, Setting_IsExtended, &my_settings.keep_tool, NULL, NULL }
+    { Setting_EnableToolPersistence, Group_Toolchange, "Keep tool data (ID/TLR/TLO) over reboot", NULL, Format_Bool, NULL, NULL, NULL, Setting_IsExtended, &my_settings.keep_tool, NULL, NULL }
 };
 
 // Write settings to non volatile storage (NVS).
@@ -72,22 +75,34 @@ static void onReportOptions (bool newopt)
     on_report_options(newopt);
 
     if(!newopt)
-        hal.stream.write("[PLUGIN:Persistent tool v0.01]" ASCII_EOL);
+        hal.stream.write("[PLUGIN:Persistent tool v0.02]" ASCII_EOL);
 }
 
 static void onToolChanged (tool_data_t *tool)
 {
+    int_fast16_t i;
+    
     if(on_tool_changed)
         on_tool_changed(tool);
 
     if(my_settings.keep_tool) {
         my_settings.tool_id = tool->tool_id;
+
+        my_settings.tlo_reference_set.value = sys.tlo_reference_set.value;
+        
+        for(i=0; i<N_AXIS; i++){
+            my_settings.tlo_reference[i] = sys.tlo_reference[i];            
+            my_settings.tool_length_offset[i] = tool->offset[i];
+        }
+
         plugin_settings_save();
     }
 }
 
 static void onParserInit (parser_state_t *gc_state)
 {
+    int_fast16_t i;
+    
     if(on_parser_init)
         on_parser_init(gc_state);
 
@@ -98,6 +113,14 @@ static void onParserInit (parser_state_t *gc_state)
       #else
         gc_state->tool->tool_id = my_settings.tool_id;
       #endif
+
+        for(i=0; i<N_AXIS; i++){
+            sys.tlo_reference[i] = my_settings.tlo_reference[i];            
+            gc_state->tool_length_offset[i] = my_settings.tool_length_offset[i];
+        }
+
+        sys.tlo_reference_set.value = my_settings.tlo_reference_set.value;
+
     }
 }
 
