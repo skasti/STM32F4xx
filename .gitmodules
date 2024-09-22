@@ -16,7 +16,7 @@
 	url = https://github.com/grblHAL/Plugin_SD_card
 [submodule "spindle"]
 	path = spindle
-	url = https://github.com/Expatria-Technologies/Plugins_spindle/
+	url = https://github.com/grblHAL/Plugins_spindle/
 	branch = vfd_support
 [submodule "laser"]
 	path = laser
