@@ -525,7 +525,7 @@ static probe_state_t probe = {
 static driver_irq_handler_t i2c_strobe = { .type = IRQ_I2C_Strobe };
 #endif
 
-#if SPI_IRQ_BIT
+#ifdef SPI_IRQ_BIT
 static driver_irq_handler_t spi_irq = { .type = IRQ_SPI };
 #endif
 
@@ -2321,6 +2321,7 @@ static bool driver_setup (settings_t *settings)
             if(outputpin[i].group == PinGroup_MotorChipSelect ||
                 outputpin[i].group == PinGroup_MotorUART ||
                  outputpin[i].id == Output_SPICS ||
+                 outputpin[i].id == Output_SdCardCS ||
                   outputpin[i].group == PinGroup_StepperEnable)
                 outputpin[i].port->ODR |= GPIO_Init.Pin;
 

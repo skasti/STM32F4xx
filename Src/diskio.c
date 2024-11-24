@@ -133,7 +133,7 @@ BYTE wait_ready (void)
 //static
 void send_initial_clock_train(void)
 {
-    unsigned int i = 10;
+    unsigned int i = 50;
 
     spi_set_speed(SPI_BAUDRATEPRESCALER_256);
 
@@ -194,7 +194,7 @@ void power_on (void)
 static
 void set_max_speed(void)
 {
-    spi_set_speed(SPI_BAUDRATEPRESCALER_16);
+    spi_set_speed(WIZCHIP_SPI_PRESCALER);
 }
 
 static
