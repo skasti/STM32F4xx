@@ -93,9 +93,9 @@
 #define M3_DIRECTION_PIN        5
 #endif
 
-#define AUXOUTPUT0_PORT         GPIOA // Spindle PWM or spindle direction
-#define AUXOUTPUT0_PIN          2
-#define AUXOUTPUT1_PORT         GPIOA // Spindle enable
+#define AUXOUTPUT0_PORT         GPIOA // D13 - spindle PWM or spindle direction
+#define AUXOUTPUT0_PIN          5
+#define AUXOUTPUT1_PORT         GPIOA // D12 - spindle enable
 #define AUXOUTPUT1_PIN          6
 
 // Define driver spindle pins
@@ -125,8 +125,6 @@
 // Spindle PWM & encoder pins.
 // NOTE: these pins are not available on the Protoneer board!
 #if SPINDLE_ENCODER_ENABLE
-#define SPINDLE_PWM_PORT_BASE   GPIOA_BASE
-#define SPINDLE_PWM_PIN         11
 #define SPINDLE_INDEX_PORT      GPIOC
 #define SPINDLE_INDEX_PIN       11
 #define SPINDLE_PULSE_PORT      GPIOD

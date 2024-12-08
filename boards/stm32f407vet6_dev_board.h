@@ -1,9 +1,9 @@
 /*
-  st_morpho_map.h - driver code for STM32F4xx ARM processors
+  stm32f407vet6_dev_board.h - driver code for STM32F4xx ARM processors
 
   Part of grblHAL
 
-  Copyright (c) 2020-2024 Terje Io
+  Copyright (c) 2024 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,24 +19,66 @@
   along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#if TRINAMIC_ENABLE == 2130
-#include "trinamic/tmc2130.h"
-#endif
-
-#if TRINAMIC_ENABLE == 2209
-#include "trinamic/tmc2209.h"
-#endif
-
-#if N_ABC_MOTORS > 1
+#if N_ABC_MOTORS > 2
 #error "Axis configuration is not supported!"
 #endif
 
-#if SDCARD_ENABLE && ETHERNET_ENABLE
-#error "SD card and networking plugins cannot be enabled together!"
-#endif
-
-#define BOARD_NAME "Nucleo-64 CNC Breakout"
+#define BOARD_NAME "STM32F407VET6 Dev Board"
 #define BOARD_URL "https://github.com/terjeio/CNC_Breakout_Nucleo64"
+
+/*
+
+P4:
+-------------------
+3V3  -  1  2 - GND
+PA5  -  3  4 - PA6
+PA3  -  5  6 - PA4
+PC0  -  7  8 - PA0
+PE6  -  9 10 - PC13
+PE4  - 11 12 - PE5
+PE1  - 13 14 - PE0
+PB7  - 15 16 - PD4
+
+P5:
+-------------------
+3V3  -  1  2 - GND
+PC7  -  3  4 - PA8
+PD15 -  5  6 - PC6
+PD13 -  7  8 - PD14
+PD11 -  9 10 - PD12
+PD9  - 11 12 - PD10
+PB1  - 13 14 - PD8
+PB0  - 15 16 - NC
+
+PA0 - SS
+PA3 - LX
+PA4 - LY
+PA5 LZ
+PA6 LM3
+PA8 LM4
+PB0 - SPWM
+PB1 - Start
+PB7 - Hold
+PC0 - Reset
+PC6 - SPON
+PC7 - SPDIR
+PC13 - DOOR
+PE0 DM4
+PE1 DM3
+PE4 DX
+PE5 DY
+PE6 DZ
+PD4 SEna
+PD8 FLOOD
+PD9 MIST
+PD10
+PD11 SX
+PD12 SY
+PD13 SZ
+PD14 SM3
+PD15 SM4
+
+ */
 
 /*
 #ifndef WEB_BUILD
@@ -48,23 +90,23 @@
 //#define EEPROM_IS_FRAM  1
 #endif
 */
-#define SERIAL_PORT     2  	// GPIOA: TX = 2, RX = 3
-#define SERIAL1_PORT    1   // GPIOA: TX = 9, RX = 10
+#define SERIAL_PORT     1   // GPIOA: TX = 9, RX = 10
 #if I2C_ENABLE
 #define I2C_PORT        1   // GPIOB: SCL = 8, SDA = 9
 #endif
 
-#define IS_NUCLEO_BOB
-
-#if SDCARD_ENABLE || TRINAMIC_SPI_ENABLE || ETHERNET_ENABLE
-#define SPI_PORT                1 // GPIOA, SCK_PIN = 5, MISO_PIN = 6, MOSI_PIN = 7
+#if SDCARD_ENABLE
+#define SDCARD_SDIO             1
 #endif
 
+#define SPI_PORT               21   // GOPIB: SCK = 10, GPIOC: MISO - 2, MOSI - 3
+
 // Define step pulse output pins.
-#define STEP_PORT               GPIOC
-#define X_STEP_PIN              0
-#define Y_STEP_PIN              5
-#define Z_STEP_PIN              9
+
+#define STEP_PORT               GPIOD
+#define X_STEP_PIN              11
+#define Y_STEP_PIN              12
+#define Z_STEP_PIN              13
 #if N_GANGED
 #define STEP_OUTMODE            GPIO_BITBAND
 #else
@@ -72,10 +114,10 @@
 #endif
 
 // Define step direction output pins.
-#define DIRECTION_PORT          GPIOA
-#define X_DIRECTION_PIN         0
-#define Y_DIRECTION_PIN         4
-#define Z_DIRECTION_PIN         11
+#define DIRECTION_PORT          GPIOE
+#define X_DIRECTION_PIN         4
+#define Y_DIRECTION_PIN         5
+#define Z_DIRECTION_PIN         6
 #if N_GANGED
 #define DIRECTION_OUTMODE       GPIO_BITBAND
 #else
@@ -83,33 +125,47 @@
 #endif
 
 // Define stepper driver enable/disable output pins.
+#define STEPPERS_ENABLE_PORT    GPIOD
+#define STEPPERS_ENABLE_PIN     4
+/*
 #define X_ENABLE_PORT           GPIOA
 #define X_ENABLE_PIN            1
 #define Y_ENABLE_PORT           GPIOB
 #define Y_ENABLE_PIN            12
-#define Z_ENABLE_PORT           GPIOB
-#define Z_ENABLE_PIN            1
+*/
+#define Z_ENABLE_PORT           GPIOD
+#define Z_ENABLE_PIN            10
 
 // Define homing/hard limit switch input pins.
-#define LIMIT_PORT              GPIOC
-#define X_LIMIT_PIN             13
-#define Y_LIMIT_PIN             12
-#define Z_LIMIT_PIN             10
+#define LIMIT_PORT              GPIOA
+#define X_LIMIT_PIN             3
+#define Y_LIMIT_PIN             4
+#define Z_LIMIT_PIN             5
 #define LIMIT_INMODE            GPIO_BITBAND
 
 // Define ganged axis or A axis step pulse and step direction output pins.
-#if N_ABC_MOTORS == 1
+#if N_ABC_MOTORS >= 1
 #define M3_AVAILABLE
-#define M3_STEP_PORT            GPIOC
-#define M3_STEP_PIN             6
-#define M3_DIRECTION_PORT       GPIOA
-#define M3_DIRECTION_PIN        12
-#define M3_LIMIT_PORT           GPIOC
-#define M3_LIMIT_PIN            11
-#define M3_ENABLE_PORT          GPIOB
-#define M3_ENABLE_PIN           6
+#define M3_STEP_PORT            GPIOD
+#define M3_STEP_PIN             14
+#define M3_DIRECTION_PORT       GPIOE
+#define M3_DIRECTION_PIN        0
+#define M3_LIMIT_PORT           GPIOA
+#define M3_LIMIT_PIN            6
 #endif
 
+// Define ganged axis or B axis step pulse and step direction output pins.
+#if N_ABC_MOTORS == 2
+#define M4_AVAILABLE
+#define M4_STEP_PORT            GPIOD
+#define M4_STEP_PIN             15
+#define M4_DIRECTION_PORT       GPIOE
+#define M4_DIRECTION_PIN        1
+#define M4_LIMIT_PORT           GPIOA
+#define M4_LIMIT_PIN            8
+#endif
+
+/*
 #define AUXOUTPUT0_PORT         GPIOB // Aux 0
 #define AUXOUTPUT0_PIN          15
 #if !ETHERNET_ENABLE
@@ -122,13 +178,13 @@
 #define AUXOUTPUT3_PORT         GPIOA // SCK
 #define AUXOUTPUT3_PIN          5
 #endif
-
-#define AUXOUTPUT4_PORT         GPIOA // Spindle PWM
-#define AUXOUTPUT4_PIN          8
-#define AUXOUTPUT5_PORT         GPIOB // Spindle direction
-#define AUXOUTPUT5_PIN          5
-#define AUXOUTPUT6_PORT         GPIOB // Spindle enable
-#define AUXOUTPUT6_PIN          3
+*/
+#define AUXOUTPUT4_PORT         GPIOB // Spindle PWM
+#define AUXOUTPUT4_PIN          0
+#define AUXOUTPUT5_PORT         GPIOC // Spindle direction
+#define AUXOUTPUT5_PIN          6
+#define AUXOUTPUT6_PORT         GPIOC // Spindle enable
+#define AUXOUTPUT6_PIN          7
 
 // Define driver spindle pins
 #if DRIVER_SPINDLE_ENABLE
@@ -144,52 +200,47 @@
 #endif
 #endif //DRIVER_SPINDLE_ENABLE
 
-#if DRIVER_SPINDLE1_ENABLE
-#define SPINDLE1_ENABLE_PORT     AUXOUTPUT6_PORT
-#define SPINDLE1_ENABLE_PIN      AUXOUTPUT6_PIN
-#if DRIVER_SPINDLE1_PWM_ENABLE
-#define SPINDLE1_PWM_PORT        AUXOUTPUT4_PORT
-#define SPINDLE1_PWM_PIN         AUXOUTPUT4_PIN
-#endif
-#if DRIVER_SPINDLE1_DIR_ENABLE
-#define SPINDLE1_DIRECTION_PORT  AUXOUTPUT5_PORT
-#define SPINDLE1_DIRECTION_PIN   AUXOUTPUT5_PIN
-#endif
-#endif //DRIVER_SPINDLE_ENABLE
-
-
 // Define flood and mist coolant enable output pins.
-#define COOLANT_FLOOD_PORT      GPIOB
-#define COOLANT_FLOOD_PIN       10
-#define COOLANT_MIST_PORT       GPIOB
-#define COOLANT_MIST_PIN        4
+#define COOLANT_FLOOD_PORT      GPIOD
+#define COOLANT_FLOOD_PIN       8
+#define COOLANT_MIST_PORT       GPIOD
+#define COOLANT_MIST_PIN        9
 
 // Define user-control controls (cycle start, reset, feed hold) input pins.
+/*
 #define CONTROL_PORT            GPIOC
-#define RESET_PIN               2
-#define FEED_HOLD_PIN           3
-#define CYCLE_START_PIN         4
+#define RESET_PIN               0
+#define FEED_HOLD_PIN           7
+#define CYCLE_START_PIN         13
+#define CONTROL_INMODE          GPIO_BITBAND
+*/
+#define RESET_PORT              GPIOC
+#define RESET_PIN               0
+#define FEED_HOLD_PORT          GPIOB
+#define FEED_HOLD_PIN           1
+#define CYCLE_START_PORT        GPIOB
+#define CYCLE_START_PIN         7
 #define CONTROL_INMODE          GPIO_BITBAND
 
 #ifdef SPI_PORT
-#if SDCARD_ENABLE
-#define SD_CS_PORT              GPIOC
-#define SD_CS_PIN               8
+#define SPI_CS_PORT             GPIOE
+#define SPI_CS_PIN              7
+#define SPI_IRQ_PORT            GPIOE
+#define SPI_IRQ_PIN             9
+#define SPI_RST_PORT            GPIOE
+#define SPI_RST_PIN             8
 #endif
-#if TRINAMIC_SPI_ENABLE
-#define MOTOR_CS_PORT           GPIOB
-#define MOTOR_CS_PIN            7
-#endif
-#endif // SPI_PORT
 
-/*
-#define LED_R_PORT              GPIOA
-#define LED_R_PIN               7
-#define LED_G_PORT              GPIOB
-#define LED_G_PIN               7
-#define LED_B_PORT              GPIOC
-#define LED_B_PIN               8
-*/
+// LED 1 - 3, all red
+#define LED_R_PORT              GPIOE
+#define LED_R_PIN               13
+#define LED_G_PORT              GPIOE
+#define LED_G_PIN               14
+#define LED_B_PORT              GPIOE
+#define LED_B_PIN               15
+
+// Button 1 - 3
+// PE10 - 12
 
 //#define NEOPIXEL_GPO
 //#define LED_PORT                GPIOA
@@ -198,11 +249,11 @@
 //#define NEOPIXEL_SPI            1 // PA7
 //#define NEOPIXELS_NUM           6
 
-#if !SPINDLE_SYNC_ENABLE && !QEI_ENABLE
-#define AUXINPUT0_PORT          GPIOB
-#define AUXINPUT0_PIN           14
+#if !SPINDLE_SYNC_ENABLE
+#define AUXINPUT0_PORT          GPIOC
+#define AUXINPUT0_PIN           13
 #endif
-
+/*
 #if !SPINDLE_ENCODER_ENABLE && !QEI_ENABLE
 #define AUXINPUT1_PORT          GPIOA
 #define AUXINPUT1_PIN           15
@@ -217,9 +268,10 @@
 #define AUXINPUT3_PIN           0
 #define AUXINPUT4_PORT          GPIOC
 #define AUXINPUT4_PIN           1
-#define AUXINPUT5_PORT          GPIOC
-#define AUXINPUT5_PIN           7
-
+*/
+#define AUXINPUT5_PORT          GPIOE
+#define AUXINPUT5_PIN           2
+/*
 #ifndef SPI_PORT
 #define AUXINPUT6_PORT          GPIOC
 #define AUXINPUT6_PIN           8
@@ -227,6 +279,7 @@
 #define AUXINPUT6_PORT          GPIOC
 #define AUXINPUT6_PIN           11
 #endif
+*/
 
 #if PROBE_ENABLE
 #define PROBE_PORT              AUXINPUT5_PORT
@@ -234,10 +287,11 @@
 #endif
 
 #if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PORT        AUXINPUT4_PORT
-#define SAFETY_DOOR_PIN         AUXINPUT4_PIN
+#define SAFETY_DOOR_PORT        AUXINPUT0_PORT
+#define SAFETY_DOOR_PIN         AUXINPUT0_PIN
 #endif
 
+/*
 #if MOTOR_FAULT_ENABLE && defined(AUXINPUT1_PORT)
 #define MOTOR_FAULT_PORT        AUXINPUT1_PORT
 #define MOTOR_FAULT_PIN         AUXINPUT1_PIN
@@ -248,11 +302,6 @@
 #define MOTOR_WARNING_PIN       AUXINPUT3_PIN
 #endif
 
-#if I2C_STROBE_ENABLE
-#define I2C_STROBE_PORT         AUXINPUT3_PORT
-#define I2C_STROBE_PIN          AUXINPUT3_PIN
-#endif
-
 #if MPG_ENABLE == 1
 #define MPG_AUX_ENABLE
 #define MPG_MODE_PORT           AUXINPUT6_PORT
@@ -260,14 +309,14 @@
 #endif
 
 #if SPINDLE_ENCODER_ENABLE
-#define SPINDLE_PULSE_PORT      GPIOD  // NOTE: this pin is connected to PA15
-#define SPINDLE_PULSE_PIN       2
+#define SPINDLE_PULSE_PORT      GPIOA
+#define SPINDLE_PULSE_PIN       0
 #if SPINDLE_SYNC_ENABLE
 #define SPINDLE_INDEX_PORT      GPIOB
 #define SPINDLE_INDEX_PIN       14
 #endif
 #endif
-
+*/
 #if QEI_ENABLE && !SPINDLE_SYNC_ENABLE
 #define QEI_A_PORT              GPIOA
 #define QEI_A_PIN               15
@@ -285,15 +334,19 @@
 #endif
 #endif
 
-#if ETHERNET_ENABLE
-#undef SPI_ENABLE
-#define SPI_ENABLE 1
-#define SPI_CS_PORT             GPIOC
-#define SPI_CS_PIN              8
-#define SPI_IRQ_PORT            GPIOB
-#define SPI_IRQ_PIN             0
-#define SPI_RST_PORT            GPIOB // AUXOUTPUT1
-#define SPI_RST_PIN             2
+#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
+#define SERIAL1_PORT           21 // GPIOD: TX = 5, RX = 6
+#if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
+#define MODBUS_RTU_STREAM       1
+#define MODBUS_DIR_AUX          0 // GPIOD 7
 #endif
+#endif
+
+#define FLASH_CS_PORT           GPIOE
+#define FLASH_CS_PIN            3
+
+#define CAN_PORT                GPIOD
+#define CAN_RX_PIN              0
+#define CAN_TX_PIN              1
 
 // EOF

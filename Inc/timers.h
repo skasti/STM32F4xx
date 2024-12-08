@@ -1,10 +1,10 @@
 /*
 
-  usb_serial.h - stream interface for USB virtual serial port
+  timers.h - driver code for STM32F7xx ARM processors
 
   Part of grblHAL
 
-  Copyright (c) 2021-2024 Terje Io
+  Copyright (c) 2024 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,24 +18,22 @@
 
   You should have received a copy of the GNU General Public License
   along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
-
 */
 
 #pragma once
 
-#include <stdint.h>
-#include <stdbool.h>
+/* Internal API */
 
-#include "driver.h"
+bool timer_claim (TIM_TypeDef *timer);
+bool timer_is_claimed (TIM_TypeDef *timer);
+uint32_t timer_clk_enable (TIM_TypeDef *timer);
+uint32_t timer_get_clock_hz (TIM_TypeDef *timer);
 
-typedef struct {
-    serial_linestate_t pin;
-    uint32_t timestamp;
-} usb_linestate_t;
+/* HAL API */
 
-extern volatile usb_linestate_t usb_linestate;
+hal_timer_t timerClaim (timer_cap_t cap, uint32_t timebase);
+bool timerCfg (hal_timer_t timer, timer_cfg_t *cfg);
+bool timerStart (hal_timer_t timer, uint32_t period);
+bool timerStop (hal_timer_t timer);
 
-const io_stream_t *usbInit (void);
-void usbBufferInput (uint8_t *data, uint32_t length);
-
-/*EOF*/
+/**/

@@ -6,18 +6,18 @@
   Copyright (c) 2021 qbazd
   Copyright (c) 2023 Terje Io
 
-  GrblHAL is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  GrblHAL is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with GrblHAL. If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 #if N_ABC_MOTORS > 2
 #error "MKS EAGLE supports 5 motors max."
@@ -45,10 +45,6 @@
 #define I2C_PORT        1
 #define I2C1_ALT_PINMAP     // GPIOB, SCL_PIN = 6, SDA_PIN = 7
 
-#if TRINAMIC_ENABLE
-#define HAS_BOARD_INIT
-#endif
-
 // If we want to debug, we need to use USART1
 //#if defined(DEBUG) && defined(USB_SERIAL_CDC)
 //#undef USB_SERIAL_CDC
@@ -58,9 +54,9 @@
 #define X_STEP_PORT             GPIOE
 #define X_STEP_PIN              3                   // X
 #define Y_STEP_PORT             GPIOE
-#define Y_STEP_PIN              0                  // Y
+#define Y_STEP_PIN              0                   // Y
 #define Z_STEP_PORT             GPIOB
-#define Z_STEP_PIN              5                  // Z
+#define Z_STEP_PIN              5                   // Z
 #define STEP_OUTMODE            GPIO_BITBAND
 //#define STEP_PINMODE            PINMODE_OD // Uncomment for open drain outputs
 
@@ -118,31 +114,27 @@
 #define M4_ENABLE_PIN           3
 #endif
 
+#define AUXOUTPUT0_PORT         GPIOA   // Spindle PWM, 3D touch
+#define AUXOUTPUT0_PIN          8
+#define AUXOUTPUT1_PORT         GPIOB   // Spindle direction, FAN2
+#define AUXOUTPUT1_PIN          1
+#define AUXOUTPUT2_PORT         GPIOA   // Spindle enable, HOTBED
+#define AUXOUTPUT2_PIN          0
+
 // Define driver spindle pins
 
-#if DRIVER_SPINDLE_PWM_ENABLE                               // 3D touch
-#define SPINDLE_PWM_PORT_BASE   GPIOA_BASE
-#define SPINDLE_PWM_PIN         8
-#else
-#define AUXOUTPUT0_PORT         GPIOA
-#define AUXOUTPUT0_PIN          8
+#if DRIVER_SPINDLE_ENABLE
+#define SPINDLE_ENABLE_PORT     AUXOUTPUT2_PORT
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT2_PIN
+#if DRIVER_SPINDLE_PWM_ENABLE
+#define SPINDLE_PWM_PORT        AUXOUTPUT0_PORT
+#define SPINDLE_PWM_PIN         AUXOUTPUT0_PIN
 #endif
-
-#if DRIVER_SPINDLE_DIR_ENABLE                               // FAN2
-#define SPINDLE_DIRECTION_PORT  GPIOB
-#define SPINDLE_DIRECTION_PIN   1
-#else
-#define AUXOUTPUT1_PORT         GPIOB
-#define AUXOUTPUT1_PIN          1
+#if DRIVER_SPINDLE_DIR_ENABLE
+#define SPINDLE_DIRECTION_PORT  AUXOUTPUT1_PORT
+#define SPINDLE_DIRECTION_PIN   AUXOUTPUT1_PIN
 #endif
-
-#if DRIVER_SPINDLE_ENABLE                                   // HOTBED
-#define SPINDLE_ENABLE_PORT     GPIOA
-#define SPINDLE_ENABLE_PIN      0
-#else
-#define AUXOUTPUT2_PORT         GPIOA
-#define AUXOUTPUT2_PIN          0
-#endif
+#endif //DRIVER_SPINDLE_ENABLE
 
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PORT      GPIOE
