@@ -531,7 +531,7 @@ static probe_state_t probe = {
 static driver_irq_handler_t i2c_strobe = { .type = IRQ_I2C_Strobe };
 #endif
 
-#ifdef SPI_IRQ_BIT
+#if SPI_IRQ_BIT
 static driver_irq_handler_t spi_irq = { .type = IRQ_SPI };
 #endif
 
@@ -1519,8 +1519,6 @@ inline static home_signals_t homeGetState (void)
 #ifdef DUAL_HOME_SWITCHES
     signals.a.mask = settings.home_invert.mask;
 #endif
-
-    hal.homing.get_state = NULL;
 
 #if HOME_INMODE == GPIO_BITBAND
     signals.a.x = DIGITAL_IN(X_HOME_PORT, X_HOME_PIN);
@@ -2792,7 +2790,7 @@ static bool driver_setup (settings_t *settings)
 
 #endif // SPINDLE_ENCODER_ENABLE
 
-    IOInitDone = settings->version.value == (uint32_t)22;
+    IOInitDone = settings->version.id == 22;
 
     hal.settings_changed(settings, (settings_changed_flags_t){0});
 
