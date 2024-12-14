@@ -28,15 +28,6 @@
 
 #include "driver.h"
 
-typedef union {
-    uint8_t value;
-    struct {
-        uint8_t dtr    :1,
-                rts    :1,
-                unused :6;
-    };
-} serial_linestate_t;
-
 typedef struct {
     serial_linestate_t pin;
     uint32_t timestamp;

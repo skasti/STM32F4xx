@@ -9,6 +9,25 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "C/C++ Runner: Debug Session",
+            "type": "cppdbg",
+            "request": "launch",
+            "args": [],
+            "stopAtEntry": false,
+            "externalConsole": true,
+            "cwd": "h:/Github/FlexiHAL/2024/STM32F4xx/grbl/tests/string_registers",
+            "program": "h:/Github/FlexiHAL/2024/STM32F4xx/grbl/tests/string_registers/build/Debug/outDebug",
+            "MIMode": "gdb",
+            "miDebuggerPath": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "type": "platformio-debug",
             "request": "launch",
             "name": "PIO Debug",
